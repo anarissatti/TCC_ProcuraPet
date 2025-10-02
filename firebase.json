@@ -22,12 +22,25 @@
       }
     }
   },
-  "emulators": {
-    "dataconnect": {
-      "dataDir": "dataconnect/.dataconnect/pgliteData"
-    }
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
-  "dataconnect": {
-    "source": "dataconnect"
-  }
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "codebase": "default",
+      "source": "functions",
+      "runtime": "python313",
+      "ignore": [
+        "venv",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
 }

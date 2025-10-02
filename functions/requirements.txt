@@ -1,0 +1,6 @@
+firebase_functions
+firebase-admin==7.1.0
+google-cloud-storage==3.4.0
+google-cloud-firestore==2.21.0
+google-cloud-vertexai==1.50.0
+numpy==1.26.4
