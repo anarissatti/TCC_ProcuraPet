@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:typed_data';
 import 'dart:io';
 
 class AnimalRegistrationPage extends StatefulWidget {
@@ -19,16 +20,27 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
   final _ageController = TextEditingController();
   String _selectedStatus = 'NORMAL';
 
-  File? _image;
+  XFile? _imageFile;
   final _picker = ImagePicker();
   final _firestore = FirebaseFirestore.instance;
+
+  Uint8List? _imageBytes;
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
+      if (Theme.of(context).platform == TargetPlatform.android ||
+          Theme.of(context).platform == TargetPlatform.iOS) {
+        setState(() {
+          _imageFile = pickedFile;
+        });
+      } else {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _imageBytes = bytes;
+          _imageFile = pickedFile;
+        });
+      }
     }
   }
 
@@ -57,27 +69,36 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
   }
 
   Future<void> _saveAnimal() async {
-    // Validações básicas
-    if (_nameController.text.isEmpty || _raceController.text.isEmpty || _image == null) {
+    if (_nameController.text.isEmpty ||
+        _raceController.text.isEmpty ||
+        _imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, preencha todos os campos e selecione uma foto.')),
+        const SnackBar(
+          content: Text(
+            'Por favor, preencha todos os campos e selecione uma foto.',
+          ),
+        ),
       );
       return;
     }
 
     try {
-      // 1. Obter a localização atual
       final position = await _getCurrentLocation();
-
-      // 2. Fazer o upload da foto para o Firebase Storage
-      final fileName = 'animal_photos/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName =
+          'animal_photos/${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = FirebaseStorage.instance.ref().child(fileName);
-      await storageRef.putFile(_image!);
+
+      if (Theme.of(context).platform == TargetPlatform.android ||
+          Theme.of(context).platform == TargetPlatform.iOS) {
+        await storageRef.putFile(File(_imageFile!.path));
+      } else {
+        await storageRef.putData(_imageBytes!);
+      }
+
       final photoUrl = await storageRef.getDownloadURL();
 
-      // 3. Criar o documento do animal no Firestore
       final animalData = {
-        'id_usuario': "id_temporario_usuario", // Substituir por ID de usuário real depois
+        'id_usuario': "id_temporario_usuario",
         'nome': _nameController.text,
         'raca': _raceController.text,
         'idade': int.tryParse(_ageController.text) ?? 0,
@@ -92,7 +113,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       };
 
       await _firestore.collection('animals').add(animalData);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Animal cadastrado com sucesso!')),
       );
@@ -102,13 +123,13 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       _ageController.clear();
       setState(() {
         _selectedStatus = 'NORMAL';
-        _image = null;
+        _imageFile = null;
+        _imageBytes = null;
       });
-
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao cadastrar animal: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao cadastrar animal: $e')));
     }
   }
 
@@ -123,20 +144,55 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: <Widget>[
-            // ... (Campos de texto, DropdownButton) ...
-            
-            // Botão e pré-visualização da imagem
+            // Campos de texto e DropdownButton re-adicionados aqui
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Nome'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _raceController,
+              decoration: const InputDecoration(labelText: 'Raça'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _ageController,
+              decoration: const InputDecoration(labelText: 'Idade'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              value: _selectedStatus,
+              decoration: const InputDecoration(labelText: 'Status'),
+              items: <String>['NORMAL', 'DESAPARECIDO', 'ENCONTRADO']
+                  .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  })
+                  .toList(),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _selectedStatus = newValue!;
+                });
+              },
+            ),
+
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _pickImage,
               icon: const Icon(Icons.photo_library),
               label: const Text('Escolher Foto'),
             ),
-            if (_image != null) ...[
+            if (_imageFile != null) ...[
               const SizedBox(height: 10),
-              Image.file(_image!, height: 150),
+              if (Theme.of(context).platform == TargetPlatform.android ||
+                  Theme.of(context).platform == TargetPlatform.iOS)
+                Image.file(File(_imageFile!.path), height: 150)
+              else
+                Image.memory(_imageBytes!, height: 150),
             ],
-
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _saveAnimal,
