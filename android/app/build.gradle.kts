@@ -41,7 +41,11 @@ android {
         }
     }
 }
-
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Adicione esta linha para incluir a dependência do ML Kit
+    implementation("com.google.mlkit:image-labeling:17.0.7")
 }
