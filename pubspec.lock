@@ -210,10 +210,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_plugin_android_lifecycle
-      sha256: b0694b7fb1689b0e6cc193b3f1fcac6423c4f93c74fb20b806c6b6f196db0c31
+      sha256: c2fe1001710127dfa7da89977a08d591398370d099aacdaa6d44da7eb14b8476
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.30"
+    version: "2.0.31"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -432,6 +432,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  page:
+    dependency: "direct main"
+    description:
+      name: page
+      sha256: "9251ace215c76f38416723c05e27882ff291f5950832da21eceb9cd1fad8ba60"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.0"
   path:
     dependency: transitive
     description:

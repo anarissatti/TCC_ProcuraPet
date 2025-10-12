@@ -1,7 +1,8 @@
 // lib/main_menu_page.dart
 import 'package:flutter/material.dart';
 import 'animal_registration_page.dart';
-import 'animal_list_page.dart'; // Vamos criar essa página em seguida
+import 'animal_list_page.dart';
+import 'package:tcc_procurapet/page/buscar_animal.dart';
 
 class MainMenuPage extends StatelessWidget {
   const MainMenuPage({super.key});
@@ -39,6 +40,16 @@ class MainMenuPage extends StatelessWidget {
                 );
               },
               child: const Text('Ver Lista de Animais'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Navega para a página de busca de animais
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => BuscarAnimalPage()),
+                );
+              },
+              child: const Text('Buscar Animal'),
             ),
           ],
         ),
