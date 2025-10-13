@@ -1,9 +1,13 @@
+// lib/page/buscar_animal.dart
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
+import 'package:http/http.dart' as http;
+import 'package:dropdown_search/dropdown_search.dart';
 
 class BuscarAnimalPage extends StatefulWidget {
   @override
@@ -16,6 +20,39 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
   final _firestore = FirebaseFirestore.instance;
   List<DocumentSnapshot> _foundAnimals = [];
   bool _isLoading = false;
+  String? _selectedRace;
+
+  // Função para buscar a lista de raças da API.
+  // Agora, ela aceita o parâmetro 'filter' que a DropdownSearch passa.
+  Future<List<String>> _fetchDogBreeds(String? filter) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://dog.ceo/api/breeds/list/all'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final Map<String, dynamic> breeds = data['message'];
+        final List<String> allBreeds = breeds.keys.toList();
+        allBreeds.insert(0, 'Vira-Lata / SRD');
+
+        // Adiciona um filtro manual (opcional) se a API não suportar
+        if (filter != null && filter.isNotEmpty) {
+          return allBreeds
+              .where(
+                (breed) => breed.toLowerCase().contains(filter.toLowerCase()),
+              )
+              .toList();
+        }
+        return allBreeds;
+      } else {
+        print('Erro ao buscar raças: ${response.statusCode}');
+        return ['Erro ao carregar raças'];
+      }
+    } catch (e) {
+      print('Erro de rede: $e');
+      return ['Erro de conexão'];
+    }
+  }
 
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(
@@ -67,31 +104,24 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
   }
 
   Future<void> _searchAnimals() async {
-    if (_selectedImage == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Selecione uma imagem primeiro.')));
+    if (_selectedImage == null && _selectedRace == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione uma imagem ou raça para buscar.'),
+        ),
+      );
       return;
     }
 
     setState(() {
       _isLoading = true;
-      _foundAnimals = []; // Limpa resultados anteriores
+      _foundAnimals = [];
     });
 
     try {
-      final List<String> tags = await _processImageWithMLKit(_selectedImage!);
-      if (tags.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Nenhuma tag relevante encontrada na imagem.'),
-          ),
-        );
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
+      final List<String> tags = _selectedImage != null
+          ? await _processImageWithMLKit(_selectedImage!)
+          : [];
 
       _currentPosition = await _getCurrentLocation();
       print("Tags da imagem: $tags");
@@ -99,9 +129,15 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
         "Localização do usuário: ${_currentPosition?.latitude}, ${_currentPosition?.longitude}",
       );
 
-      Query query = _firestore
-          .collection('animals')
-          .where('tags', arrayContainsAny: tags);
+      Query query = _firestore.collection('animals');
+
+      if (_selectedRace != null && _selectedRace != 'Vira-Lata / SRD') {
+        query = query.where('raca', isEqualTo: _selectedRace);
+      }
+
+      if (tags.isNotEmpty) {
+        query = query.where('tags', arrayContainsAny: tags);
+      }
 
       final querySnapshot = await query.get();
 
@@ -129,14 +165,12 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // Título
               const Text(
                 'Página de Busca de Animais',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              // Espaço para a imagem selecionada
               _selectedImage == null
                   ? const Text(
                       'Nenhuma imagem selecionada.',
@@ -144,13 +178,31 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
                     )
                   : Image.file(_selectedImage!, height: 200),
               const SizedBox(height: 20),
-              // Botão para selecionar imagem
               ElevatedButton(
                 onPressed: _pickImage,
                 child: const Text('Selecionar Imagem'),
               ),
               const SizedBox(height: 10),
-              // Botão para buscar
+              DropdownSearch<String>(
+                asyncItems: _fetchDogBreeds,
+                popupProps: const PopupProps.menu(
+                  showSearchBox: true,
+                  showSelectedItems: true,
+                ),
+                selectedItem: _selectedRace,
+                dropdownDecoratorProps: const DropDownDecoratorProps(
+                  dropdownSearchDecoration: InputDecoration(
+                    labelText: 'Filtrar por Raça',
+                    hintText: 'Opcional: selecione a raça',
+                  ),
+                ),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedRace = newValue;
+                  });
+                },
+              ),
+              const SizedBox(height: 10),
               ElevatedButton(
                 onPressed: _searchAnimals,
                 child: _isLoading
@@ -158,13 +210,11 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
                     : const Text('Buscar Animais Semelhantes'),
               ),
               const SizedBox(height: 20),
-              // Título dos resultados
               Text(
                 'Resultados da Busca:',
                 style: Theme.of(context).textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
-              // Exibição dos resultados
               _foundAnimals.isEmpty && !_isLoading
                   ? const Padding(
                       padding: EdgeInsets.only(top: 20),
