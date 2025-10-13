@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'animal_registration_page.dart';
 import 'animal_list_page.dart';
 import 'package:tcc_procurapet/page/buscar_animal.dart';
+import 'package:tcc_procurapet/page/add_animal_location_page.dart';
 
 class MainMenuPage extends StatelessWidget {
   const MainMenuPage({super.key});
@@ -50,6 +51,22 @@ class MainMenuPage extends StatelessWidget {
                 );
               },
               child: const Text('Buscar Animal'),
+            ),
+            const SizedBox(height: 20),
+            // NOVO BOTÃO: Navega para a página de adicionar localização
+            ElevatedButton(
+              onPressed: () {
+                // Navega para a página de adicionar localização, passando um ID de animal.
+                // Substitua 'id_do_animal_aqui' pelo ID real que você quer passar.
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AddAnimalLocationPage(
+                      animalId: 'id_do_animal_aqui',
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Adicionar Localização do Animal'),
             ),
           ],
         ),
