@@ -1,6 +1,6 @@
-// lib/animal_list_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tcc_procurapet/page/dados_animal.dart'; // Importa a nova página de detalhes
 
 class AnimalListPage extends StatelessWidget {
   const AnimalListPage({super.key});
@@ -9,7 +9,7 @@ class AnimalListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lista de Animais'),
+        title: const Text('Lista de Animais Cadastrados'),
         backgroundColor: Colors.lightGreen,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -27,7 +27,9 @@ class AnimalListPage extends StatelessWidget {
 
           // 3. Lógica para verificar se não há dados
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('Nenhum animal cadastrado.'));
+            return const Center(
+              child: Text('Nenhum animal cadastrado ou encontrado.'),
+            );
           }
 
           // 4. Lógica para exibir a lista de dados
@@ -36,20 +38,39 @@ class AnimalListPage extends StatelessWidget {
           return ListView.builder(
             itemCount: animals.length,
             itemBuilder: (context, index) {
-              final animal = animals[index].data() as Map<String, dynamic>;
+              final DocumentSnapshot doc = animals[index];
+              final String animalId = doc.id;
+              final Map<String, dynamic> animal =
+                  doc.data()! as Map<String, dynamic>;
 
               // Exibindo os dados de cada animal em um Card
               return Card(
+                elevation: 4, // Adiciona uma pequena sombra
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
-                  title: Text(animal['nome'] ?? 'Sem nome'),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  leading: const Icon(Icons.pets, color: Colors.lightGreen),
+                  title: Text(
+                    animal['nome'] ?? 'Sem nome',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text(
                     'Raça: ${animal['raca'] ?? 'Não informada'} | Status: ${animal['status'] ?? 'Não informado'}',
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
-                    // Futuramente, você pode navegar para uma tela de detalhes
-                    // print('Detalhes do animal: ${animal['nome']}');
+                    // *** AÇÃO DE NAVEGAÇÃO PARA A PÁGINA DE DETALHES ***
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => AnimalDetailsPage(
+                          animalId: animalId,
+                          animalData: animal,
+                        ),
+                      ),
+                    );
                   },
                 ),
               );
