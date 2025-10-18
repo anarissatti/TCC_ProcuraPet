@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:tcc_procurapet/page/dados_animal.dart'; // Importa a nova página de detalhes
+import 'package:tcc_procurapet/page/dados_animal.dart';
 
 class AnimalListPage extends StatelessWidget {
   const AnimalListPage({super.key});

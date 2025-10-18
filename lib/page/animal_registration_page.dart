@@ -9,6 +9,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 
+// Certifique-se de que estes imports estão funcionando e que os pacotes
+// (dropdown_search e google_mlkit_image_labeling) estão no pubspec.yaml
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 
@@ -59,6 +61,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     super.dispose();
   }
 
+  /// Busca a lista de raças de cães na API dog.ceo
   Future<List<String>> _fetchDogBreeds(String? filter) async {
     try {
       final response = await http.get(
@@ -68,10 +71,17 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final Map<String, dynamic> breeds = data['message'];
-
         final List<String> allBreeds = breeds.keys.toList();
-
         allBreeds.insert(0, 'Vira-Lata / SRD');
+
+        // Filtra a lista se um texto de filtro for fornecido
+        if (filter != null && filter.isNotEmpty) {
+          return allBreeds
+              .where(
+                (breed) => breed.toLowerCase().contains(filter.toLowerCase()),
+              )
+              .toList();
+        }
 
         return allBreeds;
       } else {
@@ -84,9 +94,11 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     }
   }
 
+  /// Processa a imagem usando ML Kit para gerar tags
   Future<void> _processImageForLabels() async {
     if (_imageFile == null) return;
 
+    // ML Kit só é suportado em ambientes Android e iOS
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       setState(() {
         _isProcessing = true;
@@ -103,79 +115,101 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
         'Gramado',
         'Ao ar livre',
         'Rua',
-      ];
+        'Cão',
+        'Animal',
+      ]; // Adicionei tags genéricas para focar em características
 
       try {
         final List<ImageLabel> labels = await imageLabeler.processImage(
           inputImage,
         );
         for (final label in labels) {
+          // Usa confiança alta e ignora tags genéricas
           if (label.confidence >= 0.70 && !ignoredTags.contains(label.label)) {
             generatedTags.add(label.label);
           }
         }
 
-        setState(() {
-          _tags = generatedTags;
-          _mlkitDebug = generatedTags.isNotEmpty
-              ? 'Tags geradas: ${generatedTags.join(', ')}'
-              : 'Nenhuma tag relevante encontrada.';
-        });
+        if (mounted) {
+          setState(() {
+            _tags = generatedTags;
+            _mlkitDebug = generatedTags.isNotEmpty
+                ? 'Tags geradas: ${generatedTags.join(', ')}'
+                : 'Nenhuma tag relevante encontrada.';
+          });
+        }
       } catch (e, st) {
         final msg = 'Erro ao processar imagem com ImageLabeler: $e';
         print('$msg\n$st');
-        setState(() {
-          _mlkitDebug = msg;
-        });
+        if (mounted) {
+          setState(() {
+            _mlkitDebug = msg;
+          });
+        }
       } finally {
         imageLabeler.close();
       }
     } else {
-      setState(() {
-        _mlkitDebug = 'ML Kit indisponível neste ambiente (Web/Desktop).';
-      });
+      if (mounted) {
+        setState(() {
+          _mlkitDebug =
+              'ML Kit indisponível neste ambiente (Web/Desktop/Outros).';
+        });
+      }
     }
 
-    setState(() {
-      _isProcessing = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
   }
 
+  /// Permite ao usuário escolher uma imagem da galeria
   Future<void> _pickImage() async {
     try {
-      setState(() {
-        _mlkitDebug = 'Selecionando imagem...';
-      });
+      if (mounted) {
+        setState(() {
+          _mlkitDebug = 'Selecionando imagem...';
+        });
+      }
 
       final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        setState(() {
-          _imageFile = pickedFile;
-        });
+        if (mounted) {
+          setState(() {
+            _imageFile = pickedFile;
+          });
+        }
 
+        // Lê os bytes, necessário para o upload e para o Image.memory
         _imageBytes = await pickedFile.readAsBytes();
 
         await _processImageForLabels();
       } else {
-        setState(() {
-          _mlkitDebug = 'Nenhuma imagem selecionada.';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nenhuma imagem selecionada.')),
-        );
+        if (mounted) {
+          setState(() {
+            _mlkitDebug = 'Nenhuma imagem selecionada.';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nenhuma imagem selecionada.')),
+          );
+        }
       }
     } catch (e) {
-      setState(() {
-        _mlkitDebug = 'Erro ao selecionar imagem: $e';
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao selecionar imagem: $e')));
+      if (mounted) {
+        setState(() {
+          _mlkitDebug = 'Erro ao selecionar imagem: $e';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao selecionar imagem: $e')),
+        );
+      }
     }
   }
 
-  // OTIMIZAÇÃO: Retorna uma posição padrão após um timeout.
+  /// Obtém a localização atual do usuário (com fallback/timeout)
   Future<Position> _getCurrentLocation() async {
     try {
       bool serviceEnabled;
@@ -239,6 +273,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     }
   }
 
+  /// Faz o upload da imagem para o Firebase Storage
   Future<String> _uploadImage() async {
     if (_imageBytes == null) {
       throw Exception('Dados da imagem estão vazios.');
@@ -258,30 +293,45 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     }
   }
 
+  /// Salva todos os dados do animal no Firestore
   Future<void> _saveAnimal() async {
     if (_nameController.text.isEmpty ||
         _selectedColor == null ||
         _selectedRace == null ||
         _imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Por favor, preencha o Nome, a Cor, a Raça e selecione uma foto.',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Por favor, preencha o Nome, a Cor, a Raça e selecione uma foto.',
+            ),
           ),
-        ),
-      );
+        );
+      }
       return;
     }
 
     // Usamos o Overlay para mostrar o CircularProgressIndicator
     OverlayEntry? overlayEntry;
     overlayEntry = OverlayEntry(
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 10),
+            Text(
+              'Cadastrando animal...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
     );
     Overlay.of(context).insert(overlayEntry);
 
     try {
-      // 1. OTIMIZAÇÃO: Inicia as duas operações demoradas em paralelo
+      // 1. Inicia as duas operações demoradas em paralelo para otimizar o tempo
       final results = await Future.wait([
         _getCurrentLocation(), // TAREFA 1: Obtém a localização (com timeout)
         _uploadImage(), // TAREFA 2: Faz o upload da imagem
@@ -292,6 +342,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
 
       // 2. Preparar dados para Firestore
       final animalData = {
+        // NOTE: Trocar "id_temporario_usuario" pelo ID do usuário logado
         'id_usuario': "id_temporario_usuario",
         'nome': _nameController.text,
         'raca': _selectedRace,
@@ -308,35 +359,40 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
         'tags': _tags,
       };
 
-      // 3. Salvar no Firestore (esta é rápida)
+      // 3. Salvar no Firestore
       await _firestore.collection('animals').add(animalData);
 
       // 4. Sucesso e Limpeza
       overlayEntry.remove();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Animal cadastrado com sucesso!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Animal cadastrado com sucesso!')),
+        );
 
-      _nameController.clear();
-      _ageController.clear();
-      setState(() {
-        _selectedStatus = 'NORMAL';
-        _selectedRace = null;
-        _selectedColor = null;
-        _imageFile = null;
-        _imageBytes = null;
-        _tags = [];
-        _mlkitDebug = null;
-      });
+        _nameController.clear();
+        _ageController.clear();
+        setState(() {
+          _selectedStatus = 'NORMAL';
+          _selectedRace = null;
+          _selectedColor = null;
+          _imageFile = null;
+          _imageBytes = null;
+          _tags = [];
+          _mlkitDebug = null;
+        });
 
-      Navigator.pop(context);
+        // Retorna para a tela anterior
+        Navigator.pop(context);
+      }
     } catch (e) {
       // Em caso de erro, remove o loading e mostra a mensagem de erro
-      overlayEntry?.remove();
+      overlayEntry.remove();
       print('ERRO COMPLETO: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao cadastrar animal: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao cadastrar animal: $e')));
+      }
     }
   }
 
@@ -404,7 +460,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
             // CAMPO: Idade
             TextField(
               controller: _ageController,
-              decoration: const InputDecoration(labelText: 'Idade'),
+              decoration: const InputDecoration(labelText: 'Idade (Anos)'),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 10),
@@ -434,6 +490,17 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
               onPressed: _pickImage,
               icon: const Icon(Icons.photo_library),
               label: const Text('Escolher Foto'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.blueGrey,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
             const SizedBox(height: 8),
 
@@ -453,7 +520,10 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                     Expanded(
                       child: Text(
                         _mlkitDebug!,
-                        style: const TextStyle(fontSize: 13),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ],
@@ -462,11 +532,14 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
             if (_imageFile != null && _imageBytes != null) ...[
               const SizedBox(height: 10),
               // Exibe a imagem usando bytes (mais compatível)
-              Image.memory(
-                _imageBytes!,
-                height: 150,
-                fit: BoxFit.cover,
-                semanticLabel: 'Prévia da foto do animal.',
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10.0),
+                child: Image.memory(
+                  _imageBytes!,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Prévia da foto do animal.',
+                ),
               ),
               if (_tags.isNotEmpty)
                 Padding(
@@ -476,8 +549,11 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                     children: _tags
                         .map(
                           (tag) => Chip(
-                            label: Text(tag),
-                            backgroundColor: Colors.blue[50],
+                            label: Text(
+                              tag,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: Colors.lightGreen[100],
                           ),
                         )
                         .toList(),
@@ -494,7 +570,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                 icon: const Icon(Icons.save),
                 label: const Text(
                   'Cadastrar Animal',
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 18),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,

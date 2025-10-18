@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // NECESSÁRIO para formatar a data/Timestamp
-import 'add_animal_location_page.dart'; // Importa a página de localização
+import 'package:intl/intl.dart';
+// CORREÇÃO DE IMPORT: Apontando para o nome do arquivo da página de mapa correto
+import 'animal_location_map_page.dart';
 
 class AnimalDetailsPage extends StatelessWidget {
   final String animalId;
@@ -42,10 +43,9 @@ class AnimalDetailsPage extends StatelessWidget {
     // Extrai os dados
     final String nome = animalData['nome'] ?? 'Nome não informado';
     final String raca = animalData['raca'] ?? 'Raça não informada';
-    final String cor = animalData['cor'] ?? 'Não informada'; // NOVO: Cor
-    final int idade = animalData['idade'] ?? 0; // NOVO: Idade
+    final String cor = animalData['cor'] ?? 'Não informada';
+    final int idade = animalData['idade'] ?? 0;
     final String status = animalData['status'] ?? 'Status não informado';
-    // 'descricao' não existe no seu animalData, mas mantive como fallback
     final String descricao = animalData['descricao'] ?? 'Sem descrição.';
     final String imageUrl = animalData['foto_url'] ?? '';
 
@@ -113,16 +113,12 @@ class AnimalDetailsPage extends StatelessWidget {
 
             // Informações principais
             _buildInfoRow(icon: Icons.pets, label: 'Raça:', value: raca),
-            _buildInfoRow(
-              icon: Icons.color_lens,
-              label: 'Cor:',
-              value: cor,
-            ), // NOVO
+            _buildInfoRow(icon: Icons.color_lens, label: 'Cor:', value: cor),
             _buildInfoRow(
               icon: Icons.cake,
               label: 'Idade:',
               value: idade > 0 ? '$idade anos' : 'Não informada',
-            ), // NOVO
+            ),
             _buildInfoRow(
               icon: Icons.warning_amber_rounded,
               label: 'Status:',
@@ -157,17 +153,20 @@ class AnimalDetailsPage extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Navega para a página de localização, passando o ID do animal
+                  // *** CORREÇÃO DE NAVEGAÇÃO ***
+                  // Usando AnimalLocationMapPage (a classe que existe)
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) =>
-                          AddAnimalLocationPage(animalId: animalId),
+                      builder: (context) => AnimalLocationMapPage(
+                        animalId: animalId,
+                        animalName: nome,
+                      ),
                     ),
                   );
                 },
                 icon: const Icon(Icons.pin_drop, size: 24),
                 label: const Text(
-                  'Marcar Última Localização',
+                  'Ver e Marcar Localização',
                   style: TextStyle(fontSize: 18),
                 ),
                 style: ElevatedButton.styleFrom(

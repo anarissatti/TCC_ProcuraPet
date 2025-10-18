@@ -28,6 +28,8 @@ dependencies:
   http: ^1.2.1 # Use a versão mais recente
   google_maps_flutter: ^2.5.0
   intl: ^0.18.1
+  geocoding: ^4.0.0
+  firebase_auth: ^4.20.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
