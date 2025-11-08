@@ -21,10 +21,9 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
   List<DocumentSnapshot> _foundAnimals = [];
   bool _isLoading = false;
 
-  // Variáveis de Filtro
   String? _selectedRace;
   String? _selectedColor;
-  List<String> _imageTags = []; // Tags geradas pelo ML Kit da foto de busca
+  List<String> _imageTags = [];
 
   static const List<String> _animalColors = [
     'Preto',
@@ -40,7 +39,6 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     'Outra',
   ];
 
-  // TAGS DE IDENTIFICAÇÃO BÁSICA (USADAS APENAS PARA VALIDAR SE HÁ UM ANIMAL NA FOTO)
   static const List<String> _animalIdentityTags = [
     'Animal',
     'Cachorro',
@@ -51,7 +49,6 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     'Pet',
   ];
 
-  // TAGS RELEVANTES PARA BUSCA (Mantidas do exemplo anterior)
   static const List<String> _relevantSearchTags = [
     'Coleira',
     'Pelo longo',
@@ -66,6 +63,7 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     'Laço',
     'Arreio',
   ];
+
   static const List<String> _commonIgnoredTags = [
     'Animal',
     'Vertebrado',
@@ -81,8 +79,6 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     'Fotografia',
     'Pet',
   ];
-
-  // --- Funções Auxiliares ---
 
   Future<List<String>> _fetchDogBreeds(String? filter) async {
     try {
@@ -115,16 +111,11 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
       source: ImageSource.gallery,
     );
     setState(() {
-      if (pickedFile != null) {
-        _selectedImage = File(pickedFile.path);
-        _imageTags = [];
-      } else {
-        _selectedImage = null;
-      }
+      _selectedImage = pickedFile != null ? File(pickedFile.path) : null;
+      _imageTags = [];
     });
   }
 
-  /// Verifica se a imagem contém alguma das tags básicas de identificação animal.
   Future<bool> _isAnimalInImage(File imageFile) async {
     final inputImage = InputImage.fromFile(imageFile);
     final imageLabeler = ImageLabeler(options: ImageLabelerOptions());
@@ -133,12 +124,10 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
       final List<ImageLabel> labels = await imageLabeler.processImage(
         inputImage,
       );
-
-      // Se qualquer tag de identificação for encontrada com alta confiança (0.80), é um animal.
-      const double minConfidenceForIdentity = 0.80;
+      const double minConfidence = 0.80;
 
       for (final label in labels) {
-        if (label.confidence >= minConfidenceForIdentity &&
+        if (label.confidence >= minConfidence &&
             _animalIdentityTags.contains(label.label)) {
           imageLabeler.close();
           return true;
@@ -146,10 +135,9 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
       }
       imageLabeler.close();
       return false;
-    } catch (e) {
-      print('Erro na validação de animal: $e');
+    } catch (_) {
       imageLabeler.close();
-      return false; // Falha na leitura, assume que não é animal.
+      return false;
     }
   }
 
@@ -161,26 +149,20 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     const double minConfidence = 0.75;
 
     for (final label in labels) {
-      final labelText = label.label;
-      final isRelevant =
-          _relevantSearchTags.contains(labelText) &&
-          !_commonIgnoredTags.contains(labelText);
-
-      if (label.confidence >= minConfidence && isRelevant) {
-        tags.add(labelText);
+      if (label.confidence >= minConfidence &&
+          _relevantSearchTags.contains(label.label) &&
+          !_commonIgnoredTags.contains(label.label)) {
+        tags.add(label.label);
       }
     }
     imageLabeler.close();
-    return tags.toSet().toList(); // Retorna tags únicas e relevantes
+    return tags.toSet().toList();
   }
-
-  // --- Função Principal de Busca em Camadas ---
 
   Future<void> _searchAnimals() async {
     setState(() {
       _isLoading = true;
       _foundAnimals = [];
-      _imageTags = [];
     });
 
     final isRaceSelected =
@@ -188,279 +170,210 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     final isColorSelected = _selectedColor != null;
     final isImageSelected = _selectedImage != null;
 
-    // 0. VALIDAÇÃO INICIAL
     if (!isRaceSelected && !isColorSelected && !isImageSelected) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Por favor, preencha pelo menos um filtro (Raça, Cor ou Imagem).',
-          ),
-        ),
+        const SnackBar(content: Text('Preencha pelo menos um filtro.')),
       );
       return;
     }
 
-    // NOVA VALIDAÇÃO DE IMAGEM
     if (isImageSelected) {
       final isAnimal = await _isAnimalInImage(_selectedImage!);
       if (!isAnimal) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não localizado animal na foto. Pesquisa abortada.'),
+            content: Text('A imagem não parece conter um animal.'),
           ),
         );
-        return; // Interrompe a pesquisa
+        return;
       }
-
-      // Se for animal, processa as tags detalhadas para a busca
       _imageTags = await _processImageWithMLKit(_selectedImage!);
-      print("Tags detalhadas geradas: $_imageTags");
     }
 
-    // 1. PRIMEIRA BUSCA: CORTE TOTAL (Raça E Cor)
-    if (isRaceSelected && isColorSelected) {
-      await _runStrictSearch(
-        race: _selectedRace,
-        color: _selectedColor,
-        failMessage:
-            'Animal não encontrado com os filtros Raça e Cor selecionados. Buscando por prioridades...',
-      );
-      if (_foundAnimals.isNotEmpty) {
-        setState(() => _isLoading = false);
-        return;
-      }
-    }
+    await _runStrictSearch(race: _selectedRace, color: _selectedColor);
 
-    // 2. BUSCA EM CAMADAS (Prioridades)
-
-    // 2.1. Prioridade 1: Apenas Raça (Se a Raça foi informada)
-    if (isRaceSelected) {
-      await _runStrictSearch(
-        race: _selectedRace,
-        failMessage:
-            'Animal não encontrado apenas com a Raça: $_selectedRace. Buscando por Semelhança de Cor/Tags...',
-      );
-      if (_foundAnimals.isNotEmpty) {
-        setState(() => _isLoading = false);
-        return;
-      }
-    }
-
-    // 2.2. Prioridade 2: Apenas Cor (Se a Cor foi informada)
-    if (isColorSelected) {
-      await _runStrictSearch(
-        color: _selectedColor,
-        failMessage:
-            'Animal não encontrado apenas com a Cor: $_selectedColor. Buscando por Semelhança de Tags...',
-      );
-      if (_foundAnimals.isNotEmpty) {
-        setState(() => _isLoading = false);
-        return;
-      }
-    }
-
-    // 2.3. Prioridade 3: Apenas Tags (Se a Imagem foi informada e passou na validação)
-    if (isImageSelected && _imageTags.isNotEmpty) {
-      await _runTagSearch(
-        tags: _imageTags,
-        failMessage: 'Nenhum animal encontrado com as Tags geradas.',
-      );
-      if (_foundAnimals.isNotEmpty) {
-        setState(() => _isLoading = false);
-        return;
-      }
-    }
-
-    // 3. RESULTADO FINAL: NENHUM ANIMAL ENCONTRADO
-    if (_foundAnimals.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Nenhum animal foi encontrado com os critérios de busca.',
-          ),
-        ),
-      );
-    }
-
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
-  // --- Funções de Execução da Busca (Modularizada) ---
-
-  Future<void> _runStrictSearch({
-    String? race,
-    String? color,
-    List<String>? tags,
-    required String failMessage,
-  }) async {
+  Future<void> _runStrictSearch({String? race, String? color}) async {
     try {
       Query query = _firestore.collection('animals');
-
-      // Aplica o filtro de Raça no Firestore (Se for SRD, não filtra a raça)
       if (race != null && race != 'Vira-Lata / SRD') {
         query = query.where('raca', isEqualTo: race);
       }
-
-      // Se tiver tags, tenta o arrayContainsAny (opcional, apenas para o filtro Tags)
-      if (tags != null && tags.isNotEmpty) {
-        query = query.where('tags', arrayContainsAny: tags);
-      }
-
       final querySnapshot = await query.get();
       List<DocumentSnapshot> results = querySnapshot.docs;
 
-      // Filtro de Cor (sempre em memória para flexibilidade)
       if (color != null) {
-        results = results.where((doc) {
-          final animal = doc.data() as Map<String, dynamic>;
-          return animal['cor'] == color;
-        }).toList();
+        results = results
+            .where(
+              (doc) => (doc.data() as Map<String, dynamic>)['cor'] == color,
+            )
+            .toList();
       }
 
-      if (results.isNotEmpty) {
-        // Encontrou o animal, armazena o resultado e retorna
+      setState(() {
         _foundAnimals = results;
-      } else {
-        // Se a busca estrita falhou, mostra a mensagem de falha
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failMessage)));
-      }
-    } catch (e, st) {
-      print('ERRO NA BUSCA ESTRITA ($race, $color): $e');
-      print('STACK TRACE: $st');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Erro ao executar a busca estrita. Verifique o console.',
-          ),
-        ),
-      );
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Erro ao buscar animais.')));
     }
   }
 
-  // Função dedicada para buscar apenas por tags
-  Future<void> _runTagSearch({
-    required List<String> tags,
-    required String failMessage,
-  }) async {
-    if (tags.isEmpty) return;
-
-    try {
-      Query query = _firestore.collection('animals');
-      query = query.where('tags', arrayContainsAny: tags);
-
-      final querySnapshot = await query.get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        _foundAnimals = querySnapshot.docs;
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failMessage)));
-      }
-    } catch (e, st) {
-      print('ERRO NA BUSCA POR TAGS: $e');
-      print('STACK TRACE: $st');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao executar a busca por tags.')),
-      );
-    }
-  }
-
-  // --- Widget Build (Interface) ---
-
+  // --- UI ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Encontre Animais Semelhantes')),
+      backgroundColor: Colors.blue[50],
+      appBar: AppBar(
+        backgroundColor: Colors.blue[600],
+        title: const Text('Buscar Animal'),
+        centerTitle: true,
+        elevation: 3,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Imagem e Botão
-            _selectedImage == null
-                ? const Text(
-                    'Selecione uma imagem de um animal para buscar por semelhança.',
-                    textAlign: TextAlign.center,
-                  )
-                : Image.file(_selectedImage!, height: 200),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _pickImage,
-              child: const Text('Selecionar Imagem'),
+          children: [
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _selectedImage == null
+                        ? Column(
+                            children: [
+                              const Icon(
+                                Icons.image_outlined,
+                                size: 60,
+                                color: Colors.blueAccent,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Selecione uma imagem de um animal\npara buscar por semelhança',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Image.file(
+                              _selectedImage!,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                    const SizedBox(height: 15),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.photo),
+                      onPressed: _pickImage,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      label: const Text('Selecionar Imagem'),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 
-            // Filtro: Cor
             DropdownButtonFormField<String>(
+              decoration: InputDecoration(
+                labelText: 'Filtrar por Cor',
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(Icons.color_lens, color: Colors.blue),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
               value: _selectedColor,
-              decoration: const InputDecoration(labelText: 'Filtrar por Cor'),
-              hint: const Text('Opcional: selecione a cor principal'),
-              items: _animalColors.map<DropdownMenuItem<String>>((
-                String value,
-              ) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedColor = newValue;
-                });
-              },
+              items: _animalColors
+                  .map(
+                    (color) =>
+                        DropdownMenuItem(value: color, child: Text(color)),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _selectedColor = value),
+            ),
+            const SizedBox(height: 15),
+
+            DropdownSearch<String>(
+              asyncItems: _fetchDogBreeds,
+              popupProps: const PopupProps.menu(showSearchBox: true),
+              dropdownDecoratorProps: DropDownDecoratorProps(
+                dropdownSearchDecoration: InputDecoration(
+                  labelText: 'Filtrar por Raça',
+                  prefixIcon: const Icon(Icons.pets, color: Colors.blue),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(15)),
+                  ),
+                ),
+              ),
+              onChanged: (String? value) =>
+                  setState(() => _selectedRace = value),
+            ),
+            const SizedBox(height: 25),
+
+            ElevatedButton.icon(
+              onPressed: _searchAnimals,
+              icon: const Icon(Icons.search),
+              label: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Buscar Animais'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[600],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 25),
+
+            Text(
+              'Resultados (${_foundAnimals.length})',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
             ),
             const SizedBox(height: 10),
 
-            // Filtro: Raça
-            DropdownSearch<String>(
-              asyncItems: _fetchDogBreeds,
-              popupProps: const PopupProps.menu(
-                showSearchBox: true,
-                showSelectedItems: true,
-              ),
-              selectedItem: _selectedRace,
-              dropdownDecoratorProps: const DropDownDecoratorProps(
-                dropdownSearchDecoration: InputDecoration(
-                  labelText: 'Filtrar por Raça',
-                  hintText: 'Opcional: selecione a raça',
-                ),
-              ),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedRace = newValue;
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-
-            // Botão de Busca
-            ElevatedButton(
-              onPressed: _searchAnimals,
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Buscar Animais Semelhantes'),
-            ),
-            const SizedBox(height: 20),
-
-            // Resultados
-            Text(
-              'Resultados da Busca (${_foundAnimals.length} encontrados):',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
             _foundAnimals.isEmpty && !_isLoading
-                ? const Padding(
-                    padding: EdgeInsets.only(top: 20),
-                    child: Text(
-                      'Nenhum animal encontrado com os filtros aplicados.',
-                      textAlign: TextAlign.center,
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text(
+                        'Nenhum animal encontrado.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     ),
                   )
                 : ListView.builder(
@@ -472,17 +385,29 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
                           _foundAnimals[index].data() as Map<String, dynamic>;
 
                       return Card(
+                        color: Colors.white,
                         margin: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        elevation: 3,
                         child: ListTile(
                           leading: animal['foto_url'] != null
-                              ? Image.network(
-                                  animal['foto_url'],
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    animal['foto_url'],
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
-                              : const Icon(Icons.pets),
-                          title: Text(animal['nome'] ?? 'Sem Nome'),
+                              : const Icon(
+                                  Icons.pets,
+                                  size: 50,
+                                  color: Colors.blueAccent,
+                                ),
+                          title: Text(animal['nome'] ?? 'Sem nome'),
                           subtitle: Text(
                             'Raça: ${animal['raca'] ?? 'N/A'}\nCor: ${animal['cor'] ?? 'N/A'}',
                           ),
