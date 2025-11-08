@@ -10,9 +10,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _formKey   = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
+  final _passCtrl = TextEditingController();
   bool _obscure = true;
 
   @override
@@ -25,9 +25,9 @@ class _LoginPageState extends State<LoginPage> {
   void _entrar() {
     if (_formKey.currentState!.validate()) {
       // TODO: autenticação real (ex.: Firebase Auth)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login efetuado (mock)!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Login efetuado (mock)!')));
       context.go('/home');
     }
   }
@@ -44,14 +44,17 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             // ===== BOLHAS DECORATIVAS (mantidas) =====
             Positioned(top: -40, right: -30, child: _bubble(130, opacity: .20)),
-            Positioned(top:  40, right:  24, child: _bubble( 70, opacity: .25)),
-            Positioned(top:  90, left:   20, child: _bubble( 58, opacity: .18)),
-            Positioned(top: 140, left:  -24, child: _bubble( 96, opacity: .22)),
+            Positioned(top: 40, right: 24, child: _bubble(70, opacity: .25)),
+            Positioned(top: 90, left: 20, child: _bubble(58, opacity: .18)),
+            Positioned(top: 140, left: -24, child: _bubble(96, opacity: .22)),
 
             // ===== CONTEÚDO =====
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
@@ -118,7 +121,9 @@ class _LoginPageState extends State<LoginPage> {
                                   if (v == null || v.trim().isEmpty) {
                                     return 'Informe seu e-mail';
                                   }
-                                  final ok = RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v);
+                                  final ok = RegExp(
+                                    r'^[^@]+@[^@]+\.[^@]+$',
+                                  ).hasMatch(v);
                                   if (!ok) return 'E-mail inválido';
                                   return null;
                                 },
@@ -134,7 +139,8 @@ class _LoginPageState extends State<LoginPage> {
                                   label: 'SENHA',
                                   hint: 'Digite sua senha',
                                   suffixIcon: IconButton(
-                                    onPressed: () => setState(() => _obscure = !_obscure),
+                                    onPressed: () =>
+                                        setState(() => _obscure = !_obscure),
                                     icon: Icon(
                                       _obscure
                                           ? Icons.visibility_off_rounded
@@ -143,8 +149,10 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                                 validator: (v) {
-                                  if (v == null || v.isEmpty) return 'Informe sua senha';
-                                  if (v.length < 6) return 'Mínimo de 6 caracteres';
+                                  if (v == null || v.isEmpty)
+                                    return 'Informe sua senha';
+                                  if (v.length < 6)
+                                    return 'Mínimo de 6 caracteres';
                                   return null;
                                 },
                               ),
@@ -156,7 +164,9 @@ class _LoginPageState extends State<LoginPage> {
                                 width: double.infinity,
                                 child: FilledButton(
                                   style: FilledButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -182,7 +192,9 @@ class _LoginPageState extends State<LoginPage> {
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const CadastroPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const CadastroPage(),
+                            ),
                           );
                         },
                         child: const Text('Não tem conta? Criar conta'),
@@ -208,8 +220,8 @@ class _LoginPageState extends State<LoginPage> {
       labelText: label,
       hintText: hint,
       hintStyle: TextStyle(
-      color: Colors.black.withOpacity(.6), // antes .85
-      fontWeight: FontWeight.w500,         // antes w600
+        color: Colors.black.withOpacity(.6), // antes .85
+        fontWeight: FontWeight.w500, // antes w600
       ),
       floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
