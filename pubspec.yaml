@@ -47,3 +47,5 @@ flutter:
   assets:
 
     - assets/   
+    - assets/data/cidades_por_uf.json
+    - assets/imagens/
