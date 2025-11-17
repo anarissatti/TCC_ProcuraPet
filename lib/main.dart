@@ -2,7 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:tcc_procurapet/firebase_options.dart';
 //import 'package:tcc_procurapet/page/animal_registration_page.dart'; // Removido, não usado aqui
-import 'package:tcc_procurapet/page/main_menu_page.dart';
+import 'package:tcc_procurapet/page/indice/main_menu_page.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Já importado, ótimo!
 import 'package:tcc_procurapet/page/indice/index_page.dart';
 

@@ -1,12 +1,12 @@
 // lib/page/buscar_animal.dart
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:http/http.dart' as http;
 import 'package:dropdown_search/dropdown_search.dart';
-import 'dart:convert';
 
 class BuscarAnimalPage extends StatefulWidget {
   const BuscarAnimalPage({super.key});
@@ -224,198 +224,405 @@ class _BuscarAnimalPageState extends State<BuscarAnimalPage> {
     }
   }
 
+  // ===== InputDecoration no mesmo estilo da LoginPage / Cadastro =====
+  InputDecoration _inputDecoration({
+    required String label,
+    String? hint,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      hintStyle: TextStyle(
+        color: Colors.black.withOpacity(.6),
+        fontWeight: FontWeight.w500,
+      ),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFCFD7EA)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFCFD7EA)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF7C9EE7), width: 2),
+      ),
+      suffixIcon: suffixIcon,
+    );
+  }
+
   // --- UI ---
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.blue[50],
-      appBar: AppBar(
-        backgroundColor: Colors.blue[600],
-        title: const Text('Buscar Animal'),
-        centerTitle: true,
-        elevation: 3,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      // Mesmo fundo da LoginPage e Cadastro de Animal
+      backgroundColor: const Color(0xFFBBD0FF),
+      body: SafeArea(
+        child: Stack(
           children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _selectedImage == null
-                        ? Column(
-                            children: [
-                              const Icon(
-                                Icons.image_outlined,
-                                size: 60,
-                                color: Colors.blueAccent,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Selecione uma imagem de um animal\npara buscar por semelhança',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey[700]),
-                              ),
-                            ],
-                          )
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: Image.file(
-                              _selectedImage!,
-                              height: 200,
-                              fit: BoxFit.cover,
+            // ===== BOLHAS DECORATIVAS (mesmo padrão) =====
+            Positioned(top: -40, right: -30, child: _bubble(130, opacity: .20)),
+            Positioned(top: 40, right: 24, child: _bubble(70, opacity: .25)),
+            Positioned(top: 90, left: 20, child: _bubble(58, opacity: .18)),
+            Positioned(top: 140, left: -24, child: _bubble(96, opacity: .22)),
+
+            // ===== CONTEÚDO =====
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Cabeçalho com patinha + título
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.pets_rounded,
+                              size: 32, color: cs.primary),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Buscar Animal',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                              letterSpacing: 0.2,
+                              color: Color(0xFF1B2B5B),
                             ),
                           ),
-                    const SizedBox(height: 15),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.photo),
-                      onPressed: _pickImage,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Use filtros e/ou uma foto para localizar\nanimais cadastrados no sistema.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black.withOpacity(0.55),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      label: const Text('Selecionar Imagem'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+                      const SizedBox(height: 24),
 
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Filtrar por Cor',
-                filled: true,
-                fillColor: Colors.white,
-                prefixIcon: const Icon(Icons.color_lens, color: Colors.blue),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              value: _selectedColor,
-              items: _animalColors
-                  .map(
-                    (color) =>
-                        DropdownMenuItem(value: color, child: Text(color)),
-                  )
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedColor = value),
-            ),
-            const SizedBox(height: 15),
-
-            DropdownSearch<String>(
-              asyncItems: _fetchDogBreeds,
-              popupProps: const PopupProps.menu(showSearchBox: true),
-              dropdownDecoratorProps: DropDownDecoratorProps(
-                dropdownSearchDecoration: InputDecoration(
-                  labelText: 'Filtrar por Raça',
-                  prefixIcon: const Icon(Icons.pets, color: Colors.blue),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(15)),
-                  ),
-                ),
-              ),
-              onChanged: (String? value) =>
-                  setState(() => _selectedRace = value),
-            ),
-            const SizedBox(height: 25),
-
-            ElevatedButton.icon(
-              onPressed: _searchAnimals,
-              icon: const Icon(Icons.search),
-              label: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Buscar Animais'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[600],
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
-
-            Text(
-              'Resultados (${_foundAnimals.length})',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            _foundAnimals.isEmpty && !_isLoading
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Text(
-                        'Nenhum animal encontrado.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _foundAnimals.length,
-                    itemBuilder: (context, index) {
-                      final animal =
-                          _foundAnimals[index].data() as Map<String, dynamic>;
-
-                      return Card(
-                        color: Colors.white,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                      // Card principal branco translúcido
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        elevation: 3,
-                        child: ListTile(
-                          leading: animal['foto_url'] != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(
-                                    animal['foto_url'],
-                                    width: 60,
-                                    height: 60,
-                                    fit: BoxFit.cover,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Card interno de imagem
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
                                   ),
-                                )
-                              : const Icon(
-                                  Icons.pets,
-                                  size: 50,
-                                  color: Colors.blueAccent,
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  _selectedImage == null
+                                      ? Column(
+                                          children: [
+                                            Icon(
+                                              Icons.image_outlined,
+                                              size: 60,
+                                              color: cs.primary,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Selecione uma imagem de um animal\npara buscar por semelhança (opcional).',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.black
+                                                    .withOpacity(0.65),
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(15),
+                                          child: Image.file(
+                                            _selectedImage!,
+                                            height: 200,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton.icon(
+                                      style: FilledButton.styleFrom(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      onPressed: _isLoading ? null : _pickImage,
+                                      icon: const Icon(Icons.photo),
+                                      label: const Text(
+                                        'Selecionar imagem',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Filtro por cor
+                            DropdownButtonFormField<String>(
+                              decoration: _inputDecoration(
+                                label: 'FILTRAR POR COR',
+                                hint: 'Selecione a cor do animal',
+                              ),
+                              value: _selectedColor,
+                              items: _animalColors
+                                  .map(
+                                    (color) => DropdownMenuItem(
+                                      value: color,
+                                      child: Text(color),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) =>
+                                  setState(() => _selectedColor = value),
+                              icon:
+                                  const Icon(Icons.arrow_drop_down_rounded),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Filtro por raça
+                            DropdownSearch<String>(
+                              asyncItems: _fetchDogBreeds,
+                              popupProps: PopupProps.menu(
+                                showSearchBox: true,
+                                searchDelay:
+                                    const Duration(milliseconds: 300),
+                                showSelectedItems: true,
+                                menuProps: MenuProps(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                          title: Text(animal['nome'] ?? 'Sem nome'),
-                          subtitle: Text(
-                            'Raça: ${animal['raca'] ?? 'N/A'}\nCor: ${animal['cor'] ?? 'N/A'}',
-                          ),
+                              ),
+                              dropdownDecoratorProps:
+                                  DropDownDecoratorProps(
+                                dropdownSearchDecoration: _inputDecoration(
+                                  label: 'FILTRAR POR RAÇA',
+                                  hint: 'Digite para buscar a raça',
+                                ),
+                              ),
+                              selectedItem: _selectedRace,
+                              onChanged: (String? value) =>
+                                  setState(() => _selectedRace = value),
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            // Botão de busca
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _isLoading ? null : _searchAnimals,
+                                icon: _isLoading
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.search),
+                                label: Text(
+                                  _isLoading
+                                      ? 'Buscando...'
+                                      : 'Buscar animais',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            // Título resultados
+                            Text(
+                              'Resultados (${_foundAnimals.length})',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1B2B5B),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Lista de resultados
+                            _foundAnimals.isEmpty && !_isLoading
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      'Nenhum animal encontrado.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: _foundAnimals.length,
+                                    itemBuilder: (context, index) {
+                                      final animal =
+                                          _foundAnimals[index].data()
+                                              as Map<String, dynamic>;
+
+                                      return Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color:
+                                                  Colors.black.withOpacity(
+                                                0.04,
+                                              ),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ListTile(
+                                          contentPadding:
+                                              const EdgeInsets.all(10),
+                                          leading: animal['foto_url'] != null
+                                              ? ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                    10,
+                                                  ),
+                                                  child: Image.network(
+                                                    animal['foto_url'],
+                                                    width: 56,
+                                                    height: 56,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                )
+                                              : const Icon(
+                                                  Icons.pets,
+                                                  size: 40,
+                                                  color:
+                                                      Color(0xFF1B2B5B),
+                                                ),
+                                          title: Text(
+                                            animal['nome'] ?? 'Sem nome',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            'Raça: ${animal['raca'] ?? 'N/A'}\nCor: ${animal['cor'] ?? 'N/A'}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black
+                                                  .withOpacity(0.75),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
+                ),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ===== Bolha decorativa (mesmo padrão das outras telas) =====
+  Widget _bubble(double size, {double opacity = .2}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            Colors.white.withOpacity(opacity + .05),
+            Colors.white.withOpacity(opacity),
+            Colors.transparent,
+          ],
+          stops: const [0.2, 0.55, 1.0],
+        ),
+        border: Border.all(
+          color: Colors.white.withOpacity(opacity + .15),
+          width: 1.2,
         ),
       ),
     );

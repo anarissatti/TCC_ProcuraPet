@@ -1,66 +1,70 @@
 import 'package:flutter/material.dart';
-import 'animal_registration_page.dart';
-import 'animal_list_page.dart';
+import '../animal_registration_page.dart';
 import 'package:tcc_procurapet/page/buscar_animal.dart';
+import 'home_page.dart'; // para acessar as páginas dos ícones superiores
+import 'perfil_page.dart';
 
-class MainMenuPage extends StatelessWidget {
+class MainMenuPage extends StatefulWidget {
   const MainMenuPage({super.key});
+
+  @override
+  State<MainMenuPage> createState() => _MainMenuPageState();
+}
+
+class _MainMenuPageState extends State<MainMenuPage> {
+  final Color azulFundo = const Color(0xFFBBD0FF);
+  final Color azulEscuro = const Color(0xFF1B2B5B);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF3FF),
+      backgroundColor: azulFundo,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // 🔹 Cabeçalho com imagem e boas-vindas
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 40,
-                  horizontal: 20,
+        child: Column(
+          children: [
+            // ===== ÍCONES SUPERIORES =====
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF1A237E), Color(0xFF60A5FA)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(40),
-                    bottomRight: Radius.circular(40),
-                  ),
-                ),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Image.asset(
-                      //Image.asset('assets/pet_banner.png')
-                      'assets/pet_banner.png', // 🐾 imagem no topo (adicione depois)
-                      height: 120,
+                    _iconTop(
+                      Icons.menu_rounded,
+                      "Menu",
                     ),
-                    const SizedBox(height: 15),
-                    const Text(
-                      'Seja Bem-vindo!',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    // "Animais" representa a tela atual → sem navegação
+                    _iconTop(
+                      Icons.pets_rounded,
+                      "Animais",
+                      page: const HomePage(),
                     ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Ajude a encontrar ou cadastrar um pet perdido 🐶🐱',
-                      style: TextStyle(fontSize: 15, color: Colors.white70),
-                      textAlign: TextAlign.center,
+                    _iconTop(
+                      Icons.person_outline_rounded,
+                      "Perfil",
+                      page: const PerfilPage(),
                     ),
                   ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
 
-              // 🔹 Botões estilizados
+              // ===== CARDS DE AÇÃO =====
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
@@ -69,13 +73,12 @@ class MainMenuPage extends StatelessWidget {
                       context,
                       title: 'Cadastrar Pet Perdido',
                       subtitle: 'Registrar um animal desaparecido',
-                      color: const Color(0xFF60A5FA),
-                      icon: Icons.pets,
+                      color: const Color(0xFF7C9EE7),
+                      icon: Icons.pets_rounded,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const AnimalRegistrationPage(),
+                            builder: (context) => const AnimalRegistrationPage(),
                           ),
                         );
                       },
@@ -87,7 +90,7 @@ class MainMenuPage extends StatelessWidget {
                       title: 'Buscar Animal',
                       subtitle: 'Procurar por um pet desaparecido',
                       color: const Color(0xFF34D399),
-                      icon: Icons.search,
+                      icon: Icons.search_rounded,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -103,28 +106,55 @@ class MainMenuPage extends StatelessWidget {
                       title: 'Mapa de Animais Perdidos',
                       subtitle: 'Visualizar onde os pets foram vistos',
                       color: const Color(0xFFFBBF24),
-                      icon: Icons.map,
+                      icon: Icons.map_rounded,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => const AnimalListPage(),
+                            builder: (context) => const HomePage(),
                           ),
-                        );
+                        );  
                       },
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 40),
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
-  // 🔹 Função auxiliar para criar cartões com estilo moderno
+  // ===== ÍCONES DO TOPO (MESMO DA HOME) =====
+  Widget _iconTop(IconData icon, String label, {Widget? page}) {
+  return GestureDetector(
+    onTap: page == null
+        ? null
+        : () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => page!),
+            );
+          },
+    child: Column(
+      children: [
+        Icon(icon, size: 28, color: const Color(0xFF1B2B5B)),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF1B2B5B),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  // ===== CARDS DE MENU =====
   Widget _buildMenuCard(
     BuildContext context, {
     required String title,
@@ -140,11 +170,11 @@ class MainMenuPage extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withOpacity(0.9),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -154,11 +184,11 @@ class MainMenuPage extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.all(12),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -169,20 +199,23 @@ class MainMenuPage extends StatelessWidget {
                     title,
                     style: TextStyle(
                       color: color,
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Colors.black54, fontSize: 14),
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
             ),
             const Icon(
-              Icons.arrow_forward_ios,
+              Icons.arrow_forward_ios_rounded,
               color: Colors.black38,
               size: 18,
             ),
