@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 👈 IMPORTANTE
 import 'cadastro_page.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,6 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -22,13 +24,62 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _entrar() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: autenticação real (ex.: Firebase Auth)
-      ScaffoldMessenger.of(
+  Future<void> _entrar() async {
+    // Valida os campos do formulário
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final email = _emailCtrl.text.trim();
+      final senha = _passCtrl.text;
+
+      // Login no Firebase Auth
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: senha,
+      );
+
+      if (!mounted) return;
+
+      // Se deu certo, troca para a HomePage
+      Navigator.pushReplacement(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Login efetuado (mock)!')));
-      context.go('/home');
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String msg = 'Erro ao fazer login.';
+
+      switch (e.code) {
+        case 'invalid-email':
+          msg = 'E-mail inválido.';
+          break;
+        case 'user-not-found':
+          msg = 'Nenhum usuário encontrado com este e-mail.';
+          break;
+        case 'wrong-password':
+          msg = 'Senha incorreta.';
+          break;
+        case 'user-disabled':
+          msg = 'Este usuário foi desativado.';
+          break;
+        case 'too-many-requests':
+          msg = 'Muitas tentativas. Tente novamente mais tarde.';
+          break;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro inesperado: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -148,11 +199,14 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 ),
+                                onFieldSubmitted: (_) => _entrar(), // Enter envia
                                 validator: (v) {
-                                  if (v == null || v.isEmpty)
+                                  if (v == null || v.isEmpty) {
                                     return 'Informe sua senha';
-                                  if (v.length < 6)
+                                  }
+                                  if (v.length < 6) {
                                     return 'Mínimo de 6 caracteres';
+                                  }
                                   return null;
                                 },
                               ),
@@ -171,14 +225,22 @@ class _LoginPageState extends State<LoginPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  onPressed: _entrar,
-                                  child: const Text(
-                                    'Entrar',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
+                                  onPressed: _loading ? null : _entrar,
+                                  child: _loading
+                                      ? const SizedBox(
+                                          height: 22,
+                                          width: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Entrar',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
                                 ),
                               ),
                             ],

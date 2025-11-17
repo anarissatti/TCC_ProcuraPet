@@ -45,7 +45,7 @@ class WelcomePage extends StatelessWidget {
                 Align(
                   alignment: Alignment.topCenter,
                   child: Image.asset(
-                    'assets/imagens/logo.png',
+                    'assets/logo.png',
                     height: 300,
                   ),
                 ),

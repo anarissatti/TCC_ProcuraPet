@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 // === Firebase ===
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// === HTTP (IBGE) ===
+import 'package:http/http.dart' as http;
 
 class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
@@ -31,49 +33,20 @@ class _CadastroPageState extends State<CadastroPage> {
 
   bool _obscure = true;
   bool _loading = false;
+
   String? _uf; // estado selecionado (UF)
 
-  // ===== Carregados do JSON =====
-  final List<String> _ufs = [];
+  /// Lista de UFs (pode vir da API também, mas é estável, então deixei fixa)
+  final List<String> _ufs = const [
+    "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT",
+    "PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"
+  ];
+
+  /// Cache: UF -> lista de cidades
   final Map<String, List<String>> _cidadesPorUf = {};
 
-  bool _carregando = true;
-  String? _erroCarga;
-
-  @override
-  void initState() {
-    super.initState();
-    _carregarCidadesDoJson();
-  }
-
-  Future<void> _carregarCidadesDoJson() async {
-    try {
-      final raw = await rootBundle.loadString('assets/data/cidades_por_uf.json');
-      final Map<String, dynamic> data = jsonDecode(raw);
-
-      _cidadesPorUf.clear();
-      for (final entry in data.entries) {
-        final uf = entry.key.toUpperCase();
-        final lista = (entry.value as List).map((e) => e.toString()).toList()
-          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        _cidadesPorUf[uf] = lista;
-      }
-
-      _ufs
-        ..clear()
-        ..addAll(_cidadesPorUf.keys.toList()..sort());
-
-      setState(() {
-        _carregando = false;
-        _erroCarga = null;
-      });
-    } catch (e) {
-      setState(() {
-        _carregando = false;
-        _erroCarga = 'Falha ao carregar cidades: $e';
-      });
-    }
-  }
+  bool _carregandoCidades = false;
+  String? _erroCidades;
 
   @override
   void dispose() {
@@ -83,6 +56,62 @@ class _CadastroPageState extends State<CadastroPage> {
     _foneCtrl.dispose();
     _cidadeCtrl.dispose();
     super.dispose();
+  }
+
+  // ===== Carrega cidades da UF usando API IBGE =====
+  Future<void> _carregarCidadesDaUf(String uf) async {
+    // Se já tem cache, não busca de novo
+    if (_cidadesPorUf.containsKey(uf)) {
+      setState(() {
+        _erroCidades = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _carregandoCidades = true;
+      _erroCidades = null;
+    });
+
+    try {
+      final uri = Uri.parse(
+        'https://servicodados.ibge.gov.br/api/v1/localidades/estados/$uf/municipios',
+      );
+      final resp = await http.get(uri).timeout(const Duration(seconds: 20));
+
+      if (resp.statusCode != 200) {
+        throw Exception('HTTP ${resp.statusCode}');
+      }
+
+      // Usa bodyBytes pra evitar problema de acentuação
+      final List<dynamic> data = jsonDecode(utf8.decode(resp.bodyBytes));
+
+      final cidades = data
+          .map((m) => m['nome'].toString())
+          .toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+      setState(() {
+        _cidadesPorUf[uf] = cidades;
+        _erroCidades = null;
+      });
+    } catch (e) {
+      setState(() {
+        _erroCidades = 'Falha ao carregar cidades de $uf. Tente novamente.';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao buscar cidades do IBGE: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _carregandoCidades = false;
+        });
+      }
+    }
   }
 
   // ===== Cadastro: Auth + Firestore =====
@@ -98,10 +127,13 @@ class _CadastroPageState extends State<CadastroPage> {
 
     setState(() => _loading = true);
     try {
+      final email = _emailCtrl.text.trim();
+      final senha = _passCtrl.text;
+
       // 1) Cria usuário no Firebase Auth (email/senha)
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailCtrl.text.trim(),
-        password: _passCtrl.text, // não será salvo no Firestore
+        email: email,
+        password: senha, // não será salvo no Firestore
       );
       final uid = cred.user!.uid;
 
@@ -111,7 +143,7 @@ class _CadastroPageState extends State<CadastroPage> {
           .doc(uid)
           .set({
         'Nome': _nomeCtrl.text.trim(),
-        'E-mail': _emailCtrl.text.trim(),
+        'E-mail': email,
         'Telefone': _foneFormatter.getUnmaskedText(), // só dígitos
         'Cidade': _cidadeCtrl.text.trim(),
         'UF': _uf!.trim().toUpperCase(),
@@ -122,10 +154,14 @@ class _CadastroPageState extends State<CadastroPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cadastro realizado com sucesso!')),
         );
-        Navigator.pop(context); // volta para a tela anterior (opcional)
+        Navigator.pop(context); // volta para a tela anterior
       }
     } on FirebaseAuthException catch (e) {
-      String msg = 'Erro ao cadastrar.';
+      // Debug no console
+      // ignore: avoid_print
+      print('FirebaseAuthException: ${e.code} - ${e.message}');
+
+      String msg;
       switch (e.code) {
         case 'email-already-in-use':
           msg = 'Este e-mail já está em uso.';
@@ -139,11 +175,21 @@ class _CadastroPageState extends State<CadastroPage> {
         case 'operation-not-allowed':
           msg = 'E-mail/senha desabilitados no projeto Firebase.';
           break;
+        case 'network-request-failed':
+          msg = 'Falha de rede. Verifique sua conexão com a internet.';
+          break;
+        default:
+          msg = 'Erro ao cadastrar (${e.code}).';
+          break;
       }
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
+      // Outros erros (Firestore, etc.)
+      // ignore: avoid_print
+      print('Erro genérico no cadastro: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Falha: $e')));
@@ -198,180 +244,216 @@ class _CadastroPageState extends State<CadastroPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  if (_carregando)
-                    _CardContainer(
-                      child: const Center(child: CircularProgressIndicator()),
-                    )
-                  else if (_erroCarga != null)
-                    _CardContainer(
-                      child: Text(
-                        _erroCarga!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
-                      ),
-                    )
-                  else
-                    _CardContainer(
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            // NOME COMPLETO
-                            TextFormField(
-                              controller: _nomeCtrl,
-                              textCapitalization: TextCapitalization.words,
-                              decoration: _inputDecoration(
-                                label: 'NOME COMPLETO',
-                                hint: 'Digite seu nome',
-                              ),
-                              validator: (v) {
-                                if (v == null || v.trim().length < 3) {
-                                  return 'Informe seu nome completo';
-                                }
-                                return null;
-                              },
+                  _CardContainer(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          // NOME COMPLETO
+                          TextFormField(
+                            controller: _nomeCtrl,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: _inputDecoration(
+                              label: 'NOME COMPLETO',
+                              hint: 'Digite seu nome',
                             ),
-                            const SizedBox(height: 14),
+                            validator: (v) {
+                              if (v == null || v.trim().length < 3) {
+                                return 'Informe seu nome completo';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
 
-                            // EMAIL
-                            TextFormField(
-                              controller: _emailCtrl,
-                              keyboardType: TextInputType.emailAddress,
-                              autofillHints: const [AutofillHints.email],
-                              decoration: _inputDecoration(
-                                label: 'E-MAIL',
-                                hint: 'Digite seu e-mail',
-                              ),
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Informe seu e-mail';
-                                }
-                                final ok = RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v);
-                                if (!ok) return 'E-mail inválido';
-                                return null;
-                              },
+                          // EMAIL
+                          TextFormField(
+                            controller: _emailCtrl,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            decoration: _inputDecoration(
+                              label: 'E-MAIL',
+                              hint: 'Digite seu e-mail',
                             ),
-                            const SizedBox(height: 14),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Informe seu e-mail';
+                              }
+                              final ok = RegExp(r'^[^@]+@[^@]+\.[^@]+$')
+                                  .hasMatch(v);
+                              if (!ok) return 'E-mail inválido';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
 
-                            // SENHA
-                            TextFormField(
-                              controller: _passCtrl,
-                              obscureText: _obscure,
-                              autofillHints: const [AutofillHints.newPassword],
-                              decoration: _inputDecoration(
-                                label: 'SENHA',
-                                hint: 'Mínimo de 6 caracteres',
-                                suffixIcon: IconButton(
-                                  iconSize: 18,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32, minHeight: 32,
+                          // SENHA
+                          TextFormField(
+                            controller: _passCtrl,
+                            obscureText: _obscure,
+                            autofillHints: const [AutofillHints.newPassword],
+                            decoration: _inputDecoration(
+                              label: 'SENHA',
+                              hint: 'Mínimo de 6 caracteres',
+                              suffixIcon: IconButton(
+                                iconSize: 18,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                                icon: Icon(
+                                  _obscure
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
+                                ),
+                              ),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'Informe sua senha';
+                              }
+                              if (v.length < 6) {
+                                return 'Mínimo de 6 caracteres';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // ESTADO (UF)
+                          DropdownButtonFormField<String>(
+                            value: _uf,
+                            decoration: _inputDecoration(
+                              label: 'ESTADO (UF)',
+                              hint: 'Selecione seu estado',
+                            ),
+                            items: _ufs
+                                .map(
+                                  (uf) => DropdownMenuItem(
+                                    value: uf,
+                                    child: Text(uf),
                                   ),
-                                  onPressed: () => setState(() => _obscure = !_obscure),
-                                  icon: Icon(
-                                    _obscure
-                                        ? Icons.visibility_off_rounded
-                                        : Icons.visibility_rounded,
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                _uf = val;
+                                _cidadeCtrl.clear();
+                              });
+                              if (val != null) {
+                                _carregarCidadesDaUf(val);
+                              }
+                            },
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Selecione seu estado'
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+
+                          if (_carregandoCidades)
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 4.0, bottom: 6),
+                                child: Text(
+                                  'Carregando cidades...',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
                                   ),
                                 ),
                               ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) return 'Informe sua senha';
-                                if (v.length < 6) return 'Mínimo de 6 caracteres';
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 14),
-
-                            // ESTADO (UF)
-                            DropdownButtonFormField<String>(
-                              value: _uf,
-                              decoration: _inputDecoration(
-                                label: 'ESTADO (UF)',
-                                hint: 'Selecione seu estado',
-                              ),
-                              items: _ufs
-                                  .map((uf) => DropdownMenuItem(
-                                        value: uf,
-                                        child: Text(uf),
-                                      ))
-                                  .toList(),
-                              onChanged: (val) {
-                                setState(() {
-                                  _uf = val;
-                                  _cidadeCtrl.clear();
-                                });
-                              },
-                              validator: (v) =>
-                                  (v == null || v.isEmpty) ? 'Selecione seu estado' : null,
-                            ),
-                            const SizedBox(height: 14),
-
-                            // CIDADE (Autocomplete)
-                            _CidadeAutocomplete(
-                              controller: _cidadeCtrl,
-                              label: 'CIDADE',
-                              hint: 'Digite sua cidade',
-                              getOpcoes: () => cidadesDaUf,
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Informe sua cidade';
-                                }
-                                return null;
-                              },
-                              inputDecorationBuilder: _inputDecoration,
-                            ),
-
-                            const SizedBox(height: 14),
-
-                            // TELEFONE
-                            TextFormField(
-                              controller: _foneCtrl,
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [_foneFormatter],
-                              onChanged: (v) {
-                                // Mantém a mesma máscara de celular; se quiser, ajuste aqui.
-                              },
-                              decoration: _inputDecoration(
-                                  label: 'TELEFONE', hint: '(DDD) 00000-0000'),
-                              validator: (v) {
-                                final digits = _foneFormatter.getUnmaskedText();
-                                if (digits.length < 10) return 'Telefone inválido';
-                                return null;
-                              },
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            // Botão CADASTRAR
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                            )
+                          else if (_erroCidades != null)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 4.0, bottom: 6),
+                                child: Text(
+                                  _erroCidades!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color:
+                                        Theme.of(context).colorScheme.error,
                                   ),
                                 ),
-                                onPressed: _loading ? null : _enviar,
-                                child: _loading
-                                    ? const SizedBox(
-                                        height: 22,
-                                        width: 22,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Text(
-                                        'Cadastrar',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.3,
-                                        ),
+                              ),
+                            ),
+
+                          // CIDADE (Autocomplete) – usa lista da UF selecionada
+                          _CidadeAutocomplete(
+                            controller: _cidadeCtrl,
+                            label: 'CIDADE',
+                            hint: 'Digite sua cidade',
+                            getOpcoes: () => cidadesDaUf,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Informe sua cidade';
+                              }
+                              return null;
+                            },
+                            inputDecorationBuilder: _inputDecoration,
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          // TELEFONE
+                          TextFormField(
+                            controller: _foneCtrl,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [_foneFormatter],
+                            decoration: _inputDecoration(
+                              label: 'TELEFONE',
+                              hint: '(DDD) 00000-0000',
+                            ),
+                            validator: (v) {
+                              final digits = _foneFormatter.getUnmaskedText();
+                              if (digits.length < 10) {
+                                return 'Telefone inválido';
+                              }
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // Botão CADASTRAR
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _loading ? null : _enviar,
+                              child: _loading
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
                                       ),
-                              ),
+                                    )
+                                  : const Text(
+                                      'Cadastrar',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
 
                   const SizedBox(height: 12),
                   TextButton(
@@ -450,7 +532,11 @@ class _CidadeAutocomplete extends StatelessWidget {
   final String? hint;
   final List<String> Function() getOpcoes;
   final String? Function(String?)? validator;
-  final InputDecoration Function({required String label, String? hint, Widget? suffixIcon}) inputDecorationBuilder;
+  final InputDecoration Function({
+    required String label,
+    String? hint,
+    Widget? suffixIcon,
+  }) inputDecorationBuilder;
 
   const _CidadeAutocomplete({
     required this.controller,
@@ -491,7 +577,8 @@ class _CidadeAutocomplete extends StatelessWidget {
                 return TextField(
                   controller: textCtrl,
                   focusNode: focusNode,
-                  decoration: inputDecorationBuilder(label: label, hint: hint),
+                  decoration:
+                      inputDecorationBuilder(label: label, hint: hint),
                   textCapitalization: TextCapitalization.words,
                 );
               },
@@ -506,7 +593,10 @@ class _CidadeAutocomplete extends StatelessWidget {
                     elevation: 4,
                     borderRadius: BorderRadius.circular(12),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 220, maxWidth: 420),
+                      constraints: const BoxConstraints(
+                        maxHeight: 220,
+                        maxWidth: 420,
+                      ),
                       child: ListView.separated(
                         padding: EdgeInsets.zero,
                         itemCount: options.length,

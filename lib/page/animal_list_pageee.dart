@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Certifique-se de que este import está correto no seu projeto
-import 'package:tcc_procurapet/page/dados_animal.dart';
+import 'package:tcc_procurapet/page/indice/dados_animal.dart';
 
-// --- DEFINIÇÃO DE CORES PROFISSIONAIS ---
+// --- CORES ---
 const Color kPrimaryDarkBlue = Color(0xFF1A237E);
 const Color kAccentLightBlue = Color(0xFF4FC3F7);
 const Color kBackgroundColor = Color(0xFFE3F2FD);
-const Color kLostColor = Color(0xFFEF5350);
-const Color kFoundColor = Color(0xFF66BB6A);
+const Color kLostColor = Color(0xFFEF5350);   // Perdidos
+const Color kFoundColor = Color(0xFF66BB6A);  // Encontrados
 const Color kBorderColor = Color(0xFF90CAF9);
 
-// --- CONSTANTE PARA RESPONSIVIDADE ---
-// Define a largura máxima que cada item do grid pode ter.
-// O Flutter calculará quantas colunas cabem.
+// Largura máxima de cada card
 const double kMaxItemWidth = 200.0;
 
 class AnimalListPage extends StatefulWidget {
@@ -24,19 +21,23 @@ class AnimalListPage extends StatefulWidget {
 }
 
 class _AnimalListPageState extends State<AnimalListPage> {
+  /// Opções: 'Todos', 'Perdidos', 'Encontrados'
   String filtroSelecionado = 'Todos';
 
-  // --- Funções de Estilo (Inalteradas) ---
+  // ===== BOTÕES DE FILTRO (TOPO) =====
   Widget _buildFiltroBotao(String texto) {
     final bool selecionado = filtroSelecionado == texto;
 
     Color corPrincipal;
-    if (texto == 'Todos') {
-      corPrincipal = kPrimaryDarkBlue;
-    } else if (texto == 'Cachorros') {
-      corPrincipal = kAccentLightBlue;
-    } else {
-      corPrincipal = kLostColor;
+    switch (texto) {
+      case 'Perdidos':
+        corPrincipal = kLostColor;
+        break;
+      case 'Encontrados':
+        corPrincipal = kFoundColor;
+        break;
+      default:
+        corPrincipal = kPrimaryDarkBlue;
     }
 
     return GestureDetector(
@@ -76,9 +77,10 @@ class _AnimalListPageState extends State<AnimalListPage> {
     );
   }
 
-  IconData _getStatusIcon(String status) {
-    switch (status.toUpperCase()) {
+  IconData _getStatusIcon(String statusUpper) {
+    switch (statusUpper) {
       case 'DESAPARECIDO':
+      case 'PERDIDO':
         return Icons.location_off;
       case 'ENCONTRADO':
         return Icons.check_circle;
@@ -87,9 +89,10 @@ class _AnimalListPageState extends State<AnimalListPage> {
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
+  Color _getStatusColor(String statusUpper) {
+    switch (statusUpper) {
       case 'DESAPARECIDO':
+      case 'PERDIDO':
         return kLostColor;
       case 'ENCONTRADO':
         return kFoundColor;
@@ -98,7 +101,7 @@ class _AnimalListPageState extends State<AnimalListPage> {
     }
   }
 
-  // --- WIDGET BUILD COM CORREÇÃO DE RESPONSIVIDADE ---
+  // ===== BUILD =====
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,11 +117,7 @@ class _AnimalListPageState extends State<AnimalListPage> {
       ),
       body: Column(
         children: [
-          // --- Filtros Elegantes no Topo ---
-          // Wrap é ideal para botões, mas a versão anterior usava Row.
-          // Mantenho o SingleChildScrollView e Row para não alterar drasticamente a estrutura,
-          // mas o uso de 'spacing' em Row é incomum a menos que você esteja usando um pacote
-          // como o 'flex_layout'. Se estiver dando erro, use 'Wrap' em vez de 'Row'.
+          // --- Filtros de Status (Todos / Perdidos / Encontrados) ---
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 18.0,
@@ -126,14 +125,12 @@ class _AnimalListPageState extends State<AnimalListPage> {
             ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              // Nota: Mude 'Row(spacing: 12, children: [...])' para 'Wrap(spacing: 12, children: [...])'
-              // se Row não tiver o parâmetro 'spacing' na sua versão.
               child: Wrap(
                 spacing: 12,
                 children: [
                   _buildFiltroBotao('Todos'),
-                  _buildFiltroBotao('Cachorros'),
-                  _buildFiltroBotao('Gatos'),
+                  _buildFiltroBotao('Perdidos'),
+                  _buildFiltroBotao('Encontrados'),
                 ],
               ),
             ),
@@ -165,24 +162,30 @@ class _AnimalListPageState extends State<AnimalListPage> {
                   );
                 }
 
+                // --- FILTRO POR STATUS (usando campo "status") ---
                 final animais = snapshot.data!.docs.where((doc) {
                   final animal = doc.data() as Map<String, dynamic>;
-                  final raca = (animal['raca']?.toLowerCase() ?? '');
+                  final statusUpper =
+                      (animal['status'] ?? '').toString().toUpperCase();
 
-                  if (filtroSelecionado == 'Todos') return true;
-                  if (filtroSelecionado == 'Cachorros') {
-                    return !raca.contains('gato') && raca.isNotEmpty;
+                  if (filtroSelecionado == 'Perdidos') {
+                    return statusUpper == 'PERDIDO' ||
+                        statusUpper == 'DESAPARECIDO';
                   }
-                  if (filtroSelecionado == 'Gatos') {
-                    return raca.contains('gato');
+                  if (filtroSelecionado == 'Encontrados') {
+                    return statusUpper == 'ENCONTRADO';
                   }
-                  return true;
+                  return true; // 'Todos'
                 }).toList();
 
                 if (animais.isEmpty && filtroSelecionado != 'Todos') {
+                  final label = filtroSelecionado == 'Perdidos'
+                      ? 'perdido'
+                      : 'encontrado';
+
                   return Center(
                     child: Text(
-                      'Nenhum animal da categoria "$filtroSelecionado" encontrado.',
+                      'Nenhum animal marcado como $label.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 16,
@@ -197,27 +200,36 @@ class _AnimalListPageState extends State<AnimalListPage> {
                     horizontal: 18,
                     vertical: 12,
                   ),
-                  // MUDANÇA PRINCIPAL AQUI PARA RESPONSIVIDADE:
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: kMaxItemWidth, // Largura máxima do item
+                  gridDelegate:
+                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: kMaxItemWidth,
                     crossAxisSpacing: 18,
                     mainAxisSpacing: 18,
-                    childAspectRatio: 0.75, // Proporção altura/largura
+                    childAspectRatio: 0.75,
                   ),
-                  // FIM MUDANÇA PRINCIPAL
                   itemCount: animais.length,
                   itemBuilder: (context, index) {
                     final doc = animais[index];
                     final animal = doc.data()! as Map<String, dynamic>;
-                    final fotoUrl = animal['foto_url'] as String? ?? '';
-                    final status = animal['status'] as String? ?? 'NORMAL';
 
+                    final rawFotoUrl = animal['foto_url'];
+                    final fotoUrl = (rawFotoUrl ?? '').toString().trim();
+
+                    // status em duas versões: original p/ exibir, upper p/ lógica
+                    final rawStatus = (animal['status'] ?? 'Perdido').toString();
+                    final statusUpper = rawStatus.toUpperCase();
+
+                    // --- IMAGEM ---
                     Widget imageWidget;
                     if (fotoUrl.isEmpty) {
                       imageWidget = Container(
                         color: Colors.grey.shade300,
                         child: const Center(
-                          child: Icon(Icons.pets, color: Colors.grey, size: 40),
+                          child: Icon(
+                            Icons.pets,
+                            color: Colors.grey,
+                            size: 40,
+                          ),
                         ),
                       );
                     } else {
@@ -231,21 +243,26 @@ class _AnimalListPageState extends State<AnimalListPage> {
                               color: kAccentLightBlue,
                               value: loadingProgress.expectedTotalBytes != null
                                   ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
+                                      loadingProgress.expectedTotalBytes!
                                   : null,
                             ),
                           );
                         },
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: Colors.grey.shade300,
-                          child: const Center(
-                            child: Icon(
-                              Icons.broken_image,
-                              color: Colors.red,
-                              size: 40,
+                        errorBuilder: (context, error, stackTrace) {
+                          debugPrint(
+                              'ERRO AO CARREGAR IMAGEM (LISTA): $error');
+                          debugPrint('URL LISTA: "$fotoUrl"');
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.red,
+                                size: 40,
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       );
                     }
 
@@ -275,7 +292,7 @@ class _AnimalListPageState extends State<AnimalListPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Foto do animal
+                            // Foto
                             Expanded(
                               flex: 2,
                               child: ClipRRect(
@@ -283,11 +300,11 @@ class _AnimalListPageState extends State<AnimalListPage> {
                                   topLeft: Radius.circular(20),
                                   topRight: Radius.circular(20),
                                 ),
-                                child: imageWidget, // Usando o widget da imagem
+                                child: imageWidget,
                               ),
                             ),
 
-                            // Detalhes (Nome, Raça, Status)
+                            // Detalhes
                             Expanded(
                               flex: 1,
                               child: Padding(
@@ -319,10 +336,9 @@ class _AnimalListPageState extends State<AnimalListPage> {
                                         color: Colors.black54,
                                       ),
                                     ),
-                                    // Status em destaque (Chip)
                                     Chip(
                                       label: Text(
-                                        status,
+                                        rawStatus,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
@@ -330,13 +346,15 @@ class _AnimalListPageState extends State<AnimalListPage> {
                                         ),
                                       ),
                                       avatar: Icon(
-                                        _getStatusIcon(status),
+                                        _getStatusIcon(statusUpper),
                                         color: Colors.white,
                                         size: 16,
                                       ),
-                                      backgroundColor: _getStatusColor(status),
+                                      backgroundColor:
+                                          _getStatusColor(statusUpper),
                                       padding: EdgeInsets.zero,
-                                      labelPadding: const EdgeInsets.symmetric(
+                                      labelPadding:
+                                          const EdgeInsets.symmetric(
                                         horizontal: 6,
                                         vertical: 0,
                                       ),

@@ -6,20 +6,15 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-// Corrigido: o import deve ser apenas 'geolocator.dart'
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 👈 IMPORTANTE
 
-// --- DEFINIÇÃO DE CORES PROFISSIONAIS ---
-// Azul Escuro Principal (Navy Blue) - Para o AppBar e botões principais
+// --- DEFINIÇÃO DE CORES (algumas ainda usadas em detalhes) ---
 const Color kPrimaryDarkBlue = Color(0xFF1A237E);
-// Azul Claro/Ciano (Sky Blue) - Para acentuação e ícones
 const Color kAccentLightBlue = Color(0xFF4FC3F7);
-// Cinza Claro de Fundo
-const Color kBackgroundColor = Color(0xFFE3F2FD);
-// Cor de Borda dos Campos
 const Color kBorderColor = Color(0xFF90CAF9);
 
 class AnimalRegistrationPage extends StatefulWidget {
@@ -30,10 +25,13 @@ class AnimalRegistrationPage extends StatefulWidget {
 }
 
 class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
+  final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
+  final _descriptionController = TextEditingController();
 
-  String _selectedStatus = 'NORMAL';
+  String? _selectedStatus;
   String? _selectedRace;
   String? _selectedColor;
 
@@ -66,6 +64,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
   void dispose() {
     _nameController.dispose();
     _ageController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -168,8 +167,9 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
   // Lógica inalterada
   Future<Position> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled)
+    if (!serviceEnabled) {
       throw Exception('Serviço de localização desabilitado.');
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -185,7 +185,6 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     final fileName =
         'animal_photos/${DateTime.now().millisecondsSinceEpoch}.jpg';
     final storageRef = FirebaseStorage.instance.ref().child(fileName);
-    // Usando `putData` com verificação para evitar Null Safety Warning
     if (_imageBytes != null) {
       await storageRef.putData(_imageBytes!);
       return await storageRef.getDownloadURL();
@@ -194,11 +193,142 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     }
   }
 
-  // Lógica inalterada
+  // NOVO: overlay de loading estilizado
+  OverlayEntry _buildLoadingOverlay() {
+    return OverlayEntry(
+      builder: (context) => Container(
+        color: Colors.black45,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.20),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: kAccentLightBlue,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text(
+                  'Cadastrando animal...',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: Color(0xFF1B2B5B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // NOVO: diálogo bonitinho de sucesso no centro da tela
+  Future<void> _showSuccessDialog() async {
+    final cs = Theme.of(context).colorScheme;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ícone circular
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: cs.primary.withOpacity(0.1),
+                  ),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    size: 42,
+                    color: cs.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Animal cadastrado!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1B2B5B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'O pet foi registrado com sucesso.\nObrigado por ajudar outros tutores! 🐾',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () {
+                      // Fecha o dialog
+                      Navigator.of(dialogContext).pop();
+                      // Volta para a tela anterior (menu, home, etc.)
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text(
+                      'Voltar ao menu',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // LÓGICA DE SALVAR COM NOVAS MENSAGENS + USER ID
   Future<void> _saveAnimal() async {
+    // Validação básica
     if (_nameController.text.isEmpty ||
         _selectedColor == null ||
         _selectedRace == null ||
+        _selectedStatus == null ||
         _imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha todos os campos obrigatórios!')),
@@ -206,29 +336,19 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       return;
     }
 
-    final overlay = OverlayEntry(
-      builder: (context) => Container(
-        color: Colors.black45,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              // Usando a cor de acentuação para o indicador de progresso
-              CircularProgressIndicator(color: kAccentLightBlue),
-              SizedBox(height: 10),
-              Text(
-                'Cadastrando animal...',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+    // Usuário logado
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado para cadastrar um animal.'),
         ),
-      ),
-    );
+      );
+      return;
+    }
+    final uid = user.uid;
 
+    final overlay = _buildLoadingOverlay();
     Overlay.of(context).insert(overlay);
 
     try {
@@ -240,12 +360,16 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       final photoUrl = results[1] as String;
 
       await _firestore.collection('animals').add({
-        'id_usuario': "id_temporario_usuario",
+        // 👇 Identificação do dono do cadastro
+        'userId': uid,                // usado na PerfilPage
+        'id_usuario': uid,            // opcional, pra compatibilidade
+
         'nome': _nameController.text,
         'raca': _selectedRace,
         'cor': _selectedColor,
         'idade': int.tryParse(_ageController.text) ?? 0,
         'status': _selectedStatus,
+        'descricao': _descriptionController.text,
         'foto_url': photoUrl,
         'data_registro': Timestamp.now(),
         'ultima_localizacao': {
@@ -257,13 +381,8 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       });
 
       overlay.remove();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Animal cadastrado com sucesso! 🎉'),
-          backgroundColor: kPrimaryDarkBlue,
-        ),
-      );
-      Navigator.pop(context);
+
+      await _showSuccessDialog();
     } catch (e) {
       overlay.remove();
       ScaffoldMessenger.of(
@@ -272,250 +391,406 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
     }
   }
 
-  // Função auxiliar para definir o estilo do campo de texto (Reutilizado do design anterior para consistência)
-  InputDecoration _inputDecoration(String label, IconData icon) {
+  // ===== InputDecoration no mesmo estilo da LoginPage =====
+  InputDecoration _inputDecoration({
+    required String label,
+    String? hint,
+    Widget? suffixIcon,
+  }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: kPrimaryDarkBlue),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kBorderColor, width: 1.5),
+      hintText: hint,
+      hintStyle: TextStyle(
+        color: Colors.black.withOpacity(.6),
+        fontWeight: FontWeight.w500,
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kBorderColor, width: 1.5),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kAccentLightBlue, width: 2.0),
-      ),
-      prefixIcon: Icon(icon, color: kAccentLightBlue),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
       fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFCFD7EA)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFCFD7EA)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF7C9EE7), width: 2),
+      ),
+      suffixIcon: suffixIcon,
     );
   }
 
-  // --- WIDGET BUILD COM NOVO DESIGN ---
+  // --- WIDGET BUILD COM MESMO ESTILO DA LOGINPAGE ---
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: kBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          '🐾 Cadastro de Animal Perdido',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: kPrimaryDarkBlue, // Azul Escuro no AppBar
-        elevation: 8,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18.0),
-        child: Card(
-          elevation: 10,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                // Campos de Entrada (TextField e Dropdowns)
-                TextField(
-                  controller: _nameController,
-                  decoration: _inputDecoration('Nome do Animal', Icons.pets),
-                ),
-                const SizedBox(height: 20),
+      // Mesmo tom da página de login
+      backgroundColor: const Color(0xFFBBD0FF),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // ===== BOLHAS DECORATIVAS =====
+            Positioned(top: -40, right: -30, child: _bubble(130, opacity: .20)),
+            Positioned(top: 40, right: 24, child: _bubble(70, opacity: .25)),
+            Positioned(top: 90, left: 20, child: _bubble(58, opacity: .18)),
+            Positioned(top: 140, left: -24, child: _bubble(96, opacity: .22)),
 
-                DropdownSearch<String>(
-                  asyncItems: _fetchDogBreeds,
-                  popupProps: PopupProps.menu(
-                    showSearchBox: true,
-                    searchDelay: const Duration(milliseconds: 300),
-                    showSelectedItems: true,
-                    menuProps: MenuProps(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  dropdownDecoratorProps: DropDownDecoratorProps(
-                    dropdownSearchDecoration: _inputDecoration(
-                      'Raça (Pesquisar)',
-                      Icons.merge_type,
-                    ),
-                  ),
-                  selectedItem: _selectedRace,
-                  onChanged: (value) => setState(() => _selectedRace = value),
+            // ===== CONTEÚDO =====
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
                 ),
-                const SizedBox(height: 20),
-
-                DropdownButtonFormField<String>(
-                  value: _selectedColor,
-                  decoration: _inputDecoration('Cor Principal', Icons.palette),
-                  items: _animalColors
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedColor = v),
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: kAccentLightBlue,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                TextField(
-                  controller: _ageController,
-                  decoration: _inputDecoration('Idade (anos)', Icons.cake),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 20),
-
-                DropdownButtonFormField<String>(
-                  value: _selectedStatus,
-                  decoration: _inputDecoration('Status', Icons.info_outline),
-                  items: ['NORMAL', 'DESAPARECIDO', 'ENCONTRADO']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedStatus = v!),
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: kAccentLightBlue,
-                  ),
-                ),
-                const SizedBox(height: 30),
-
-                // Botão Selecionar Foto (Azul Claro)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.photo_camera_back, size: 24),
-                    label: const Text(
-                      'Selecionar Foto (Obrigatório)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kAccentLightBlue, // Azul Claro
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 3,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Preview da Imagem
-                if (_imageBytes != null)
-                  Column(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Cabeçalho com patinha + título (igual padrão do login)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.pets_rounded,
+                              size: 32, color: cs.primary),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Cadastro de Animal',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                              letterSpacing: 0.2,
+                              color: Color(0xFF1B2B5B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Cadastre um animal perdido ou encontrado\npara ajudar outras pessoas a encontrá-lo.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black.withOpacity(0.55),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Card branco translúcido (igual login)
                       Container(
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const [
+                          color: Colors.white.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
                             BoxShadow(
-                              color: Colors.black12,
+                              color: Colors.black.withOpacity(0.05),
                               blurRadius: 10,
-                              offset: Offset(0, 5),
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.memory(
-                            _imageBytes!,
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                    ],
-                  ),
-
-                // Tags Geradas (Chips estilizados)
-                if (_tags.isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        'Tags Geradas (ML Kit):',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: kPrimaryDarkBlue.withOpacity(0.8),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (_tags.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
-                      children: _tags
-                          .map(
-                            (t) => Chip(
-                              label: Text(
-                                t,
-                                style: const TextStyle(
-                                  color: kPrimaryDarkBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              backgroundColor: kAccentLightBlue.withOpacity(
-                                0.2,
-                              ),
-                              labelPadding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              side: const BorderSide(
-                                color: kAccentLightBlue,
-                                width: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Nome do animal
+                            TextField(
+                              controller: _nameController,
+                              decoration: _inputDecoration(
+                                label: 'NOME DO ANIMAL',
                               ),
                             ),
-                          )
-                          .toList(),
-                    ),
-                  ),
+                            const SizedBox(height: 14),
 
-                const SizedBox(height: 10),
+                            // Raça (DropdownSearch)
+                            DropdownSearch<String>(
+                              asyncItems: _fetchDogBreeds,
+                              popupProps: PopupProps.menu(
+                                showSearchBox: true,
+                                searchDelay:
+                                    const Duration(milliseconds: 300),
+                                showSelectedItems: true,
+                                menuProps: MenuProps(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              dropdownDecoratorProps: DropDownDecoratorProps(
+                                dropdownSearchDecoration: _inputDecoration(
+                                  label: 'RAÇA',
+                                ),
+                              ),
+                              selectedItem: _selectedRace,
+                              onChanged: (value) =>
+                                  setState(() => _selectedRace = value),
+                            ),
+                            const SizedBox(height: 14),
 
-                // Botão de Cadastro Final (Azul Escuro Principal)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _saveAnimal,
-                    icon: const Icon(Icons.check_circle_outline, size: 24),
-                    label: const Text(
-                      'CONCLUIR CADASTRO',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                            // Cor principal
+                            DropdownButtonFormField<String>(
+                              value: _selectedColor,
+                              decoration: _inputDecoration(
+                                label: 'COR PRINCIPAL',
+                              ),
+                              items: _animalColors
+                                  .map(
+                                    (c) => DropdownMenuItem(
+                                      value: c,
+                                      child: Text(c),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _selectedColor = v),
+                              icon: const Icon(Icons.arrow_drop_down_rounded),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Idade
+                            TextField(
+                              controller: _ageController,
+                              decoration: _inputDecoration(
+                                label: 'IDADE (ANOS)',
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Status
+                            DropdownButtonFormField<String>(
+                              value: _selectedStatus,
+                              decoration: _inputDecoration(
+                                label: 'STATUS',
+                              ),
+                              items: const [
+                                'DESAPARECIDO',
+                                'ENCONTRADO',
+                              ].map((s) {
+                                return DropdownMenuItem<String>(
+                                  value: s,
+                                  child: Text(s),
+                                );
+                              }).toList(),
+                              onChanged: (String? v) {
+                                setState(() {
+                                  _selectedStatus = v;
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Selecione o status do animal';
+                                }
+                                return null;
+                              },
+                              icon: const Icon(Icons.arrow_drop_down_rounded),
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Descrição
+                            TextField(
+                              controller: _descriptionController,
+                              decoration: _inputDecoration(
+                                label: 'Detalhes e Descrição',
+                              ),
+                              keyboardType: TextInputType.multiline,
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Botão Selecionar Foto
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _isProcessing ? null : _pickImage,
+                                icon: _isProcessing
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.photo_camera_back_outlined,
+                                      ),
+                                label: Text(
+                                  _isProcessing
+                                      ? 'Analisando imagem...'
+                                      : 'Selecionar foto (obrigatório)',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Preview da imagem
+                            if (_imageBytes != null)
+                              Column(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 10,
+                                          offset: Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Image.memory(
+                                        _imageBytes!,
+                                        height: 200,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                              ),
+
+                            // Tags geradas pelo ML Kit
+                            if (_tags.isNotEmpty)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 8.0),
+                                  child: Text(
+                                    'Tags geradas (ML Kit):',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          kPrimaryDarkBlue.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (_tags.isNotEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(bottom: 12.0),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: _tags
+                                      .map(
+                                        (t) => Chip(
+                                          label: Text(
+                                            t,
+                                            style: const TextStyle(
+                                              color: kPrimaryDarkBlue,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          backgroundColor:
+                                              kAccentLightBlue.withOpacity(
+                                            0.2,
+                                          ),
+                                          labelPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          side: const BorderSide(
+                                            color: kAccentLightBlue,
+                                            width: 1,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+
+                            if (_mlkitDebug != null)
+                              Text(
+                                _mlkitDebug!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+
+                            const SizedBox(height: 18),
+
+                            // Botão de cadastro final
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _saveAnimal,
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                ),
+                                label: const Text(
+                                  'Concluir cadastro',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimaryDarkBlue, // Azul Escuro
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 8,
-                    ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== Bolha decorativa (igual LoginPage) =====
+  Widget _bubble(double size, {double opacity = .2}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            Colors.white.withOpacity(opacity + .05),
+            Colors.white.withOpacity(opacity),
+            Colors.transparent,
+          ],
+          stops: const [0.2, 0.55, 1.0],
+        ),
+        border: Border.all(
+          color: Colors.white.withOpacity(opacity + .15),
+          width: 1.2,
         ),
       ),
     );
