@@ -1,12 +1,3 @@
 {
-  "dart.flutterSdkPath": "C:\\src\\flutter",
-  "dart.sdkPath": "",
-  "explorer.compactFolders": false,
-  "files.exclude": {
-    "**/.git": true,
-    "**/.svn": true,
-    "**/.hg": true,
-    "**/CVS": true,
-    "**/.DS_Store": true
-  }
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

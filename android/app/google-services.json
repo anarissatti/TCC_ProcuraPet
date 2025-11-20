@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "803748068384",
+    "project_id": "tcc-procurapet",
+    "storage_bucket": "tcc-procurapet.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803748068384:android:75f19697a3d25bdf8c9045",
+        "android_client_info": {
+          "package_name": "com.example.tcc_procurapet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgPxyQLyKnxpkv9v51PiCj5SmonVke2hc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
