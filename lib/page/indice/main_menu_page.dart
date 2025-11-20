@@ -3,6 +3,7 @@ import '../animal_registration_page.dart';
 import 'package:tcc_procurapet/page/buscar_animal.dart';
 import 'home_page.dart'; // para acessar as páginas dos ícones superiores
 import 'perfil_page.dart';
+import 'map_page.dart';
 
 class MainMenuPage extends StatefulWidget {
   const MainMenuPage({super.key});
@@ -108,12 +109,13 @@ class _MainMenuPageState extends State<MainMenuPage> {
                       color: const Color(0xFFFBBF24),
                       icon: Icons.map_rounded,
                       onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const HomePage(),
-                          ),
-                        );  
-                      },
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LostAnimalsMapPage(),
+                        ),
+                      );
+                    },
                     ),
                   ],
                 ),
