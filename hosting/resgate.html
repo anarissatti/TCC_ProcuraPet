@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Encontrado - Procura se Pet</title>
+    <!-- Carrega o Tailwind CSS para um visual moderno e responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #BBD0FF; /* Azul de fundo do seu app */
+            min-height: 100vh;
+        }
+        .card {
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-4 flex items-center justify-center">
+
+    <div id="app" class="w-full max-w-lg">
+        <!-- Título principal -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-[#1B2B5B] mb-2">🐾 Pet Encontrado!</h1>
+            <p class="text-lg text-gray-700">Obrigado por ajudar este animal!</p>
+        </header>
+
+        <!-- Card de Conteúdo -->
+        <div id="content-card" class="card bg-white p-6 md:p-8 rounded-xl shadow-lg">
+            <div id="loading-state" class="text-center p-8">
+                <svg class="animate-spin h-8 w-8 text-[#E56E94] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-[#1B2B5B] font-semibold">Buscando informações de resgate...</p>
+            </div>
+
+            <div id="data-state" class="hidden">
+                <h2 class="text-xl font-bold text-[#E56E94] mb-4 border-b pb-2">Detalhes do Pet</h2>
+                
+                <p class="mb-3"><span class="font-semibold text-[#1B2B5B]">Nome do Pet:</span> <span id="pet-name"></span></p>
+
+                <h2 class="text-xl font-bold text-[#E56E94] mb-4 border-b pb-2 mt-6">Contato do Tutor</h2>
+                <div class="space-y-3">
+                    <p><span class="font-semibold text-[#1B2B5B]">Tutor:</span> <span id="owner-name"></span></p>
+                    <p><span class="font-semibold text-[#1B2B5B]">Telefone:</span> <a id="phone-link" href="#" class="text-blue-600 hover:text-blue-800 font-medium"></a></p>
+                    <p><span class="font-semibold text-[#1B2B5B]">Endereço Aproximado:</span> <span id="address"></span></p>
+                </div>
+                
+                <h2 class="text-xl font-bold text-[#E56E94] mb-4 border-b pb-2 mt-6">Condições Específicas</h2>
+                <p id="conditions" class="text-gray-600 italic"></p>
+
+                <div class="mt-8 pt-6 border-t border-gray-200">
+                    <h3 class="text-lg font-bold text-green-600 mb-3">Próximo Passo: Reporte o Encontro</h3>
+                    <p class="text-gray-700 mb-4">Para notificar o tutor de forma imediata e enviar a localização exata, baixe nosso aplicativo.</p>
+                    <a href="https://link-para-sua-loja-de-apps" target="_blank" class="w-full inline-block text-center py-3 px-4 bg-[#34D399] text-white font-bold rounded-lg hover:bg-green-700 transition duration-300">
+                        Baixar App "Procura se Pet"
+                    </a>
+                </div>
+            </div>
+
+            <div id="error-state" class="hidden text-center p-8">
+                <p class="text-red-500 text-lg font-semibold mb-4">Erro ao Carregar os Dados</p>
+                <p class="text-gray-600">ID de resgate inválido ou pet não encontrado. Por favor, tente entrar em contato pelo telefone impresso na placa (se disponível) ou reporte o erro.</p>
+            </div>
+        </div>
+        
+        <footer class="text-center mt-6 text-sm text-gray-600">
+            <p>&copy; 2023 Procura se Pet. Solução de Resgate Inteligente.</p>
+        </footer>
+    </div>
+
+    <!-- IMPORTAÇÕES V9 - USE A SINTAXE COMPATÍVEL ABAIXO -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+    <script>
+        // ***************************************************************
+        // CONFIGURAÇÃO DO FIREBASE COM SUAS CHAVES CORRIGIDAS
+        // ***************************************************************
+        const firebaseConfig = {
+            apiKey: "AIzaSyAai9PSZ5ZVdoglpRu9aPc2BWviA61ZPuU", 
+            authDomain: "tcc-procurapet.firebaseapp.com",
+            projectId: "tcc-procurapet",
+            storageBucket: "tcc-procurapet.firebasestorage.app",
+            messagingSenderId: "803748068384",
+            appId: "1:803748068384:web:33e5055a65ccc7258c9045"
+        };
+        // FIM DA CONFIGURAÇÃO CORRIGIDA
+
+        // Inicializa o Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        
+        // CORREÇÃO CRÍTICA: Inicializa o Firestore usando a função correta da V9
+        // Isso força a compatibilidade com a versão importada
+        const db = firebase.firestore();
+
+        // Variáveis de estado da página
+        const loadingState = document.getElementById('loading-state');
+        const dataState = document.getElementById('data-state');
+        const errorState = document.getElementById('error-state');
+
+        /**
+         * Extrai um parâmetro específico da URL (como o ID do pet).
+         */
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        /**
+         * Busca os dados do pet no Firestore usando o ID da URL.
+         */
+        async function loadPetData() {
+            const petId = getQueryParam('id');
+            
+            if (!petId) {
+                loadingState.classList.add('hidden');
+                errorState.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                // 2. Busca o documento na coleção 'pets_qr_data'
+                const docRef = db.collection('pets_qr_data').doc(petId);
+                const docSnap = await docRef.get();
+
+                // 3. Verifica se o documento existe
+                if (docSnap.exists) {
+                    const data = docSnap.data();
+                    
+                    // Preenche a interface com os dados
+                    document.getElementById('pet-name').textContent = data.petName || 'Não Informado';
+                    document.getElementById('owner-name').textContent = data.ownerName || 'Não Informado';
+                    
+                    const phoneLink = document.getElementById('phone-link');
+                    phoneLink.textContent = data.phone || 'Não Informado';
+                    if (data.phone) {
+                        phoneLink.href = `tel:${data.phone.replace(/\D/g,'')}`;
+                    } else {
+                        phoneLink.href = '#';
+                    }
+
+                    document.getElementById('address').textContent = data.address || 'Não Informado';
+                    document.getElementById('conditions').textContent = data.conditions || 'Nenhuma condição ou informação adicional fornecida.';
+
+                    // Mostra o estado de dados e esconde o loading
+                    loadingState.classList.add('hidden');
+                    dataState.classList.remove('hidden');
+
+                } else {
+                    // ID não encontrado no banco de dados
+                    loadingState.classList.add('hidden');
+                    errorState.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error("Erro CRÍTICO ao buscar dados do Firestore. Causa: Falha de rede/conexão.", error);
+                loadingState.classList.add('hidden');
+                errorState.classList.remove('hidden');
+            }
+        }
+
+        // Inicia o carregamento dos dados quando a página é aberta
+        window.onload = loadPetData;
+    </script>
+
+</body>
+</html>

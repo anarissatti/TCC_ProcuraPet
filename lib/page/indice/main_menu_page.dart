@@ -3,6 +3,7 @@ import '../animal_registration_page.dart';
 import 'package:tcc_procurapet/page/buscar_animal.dart';
 import 'home_page.dart'; // para acessar as páginas dos ícones superiores
 import 'perfil_page.dart';
+import 'qrcode_generate_page.dart'; // NOVO: Importa a página de QR Code
 
 class MainMenuPage extends StatefulWidget {
   const MainMenuPage({super.key});
@@ -26,8 +27,10 @@ class _MainMenuPageState extends State<MainMenuPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.8),
                   borderRadius: BorderRadius.circular(20),
@@ -42,10 +45,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _iconTop(
-                      Icons.menu_rounded,
-                      "Menu",
-                    ),
+                    _iconTop(Icons.menu_rounded, "Menu"),
                     // "Animais" representa a tela atual → sem navegação
                     _iconTop(
                       Icons.pets_rounded,
@@ -62,10 +62,11 @@ class _MainMenuPageState extends State<MainMenuPage> {
               ),
             ),
 
-              const SizedBox(height: 30),
+            const SizedBox(height: 30),
 
-              // ===== CARDS DE AÇÃO =====
-              Padding(
+            // ===== CARDS DE AÇÃO =====
+            Expanded(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
@@ -78,7 +79,8 @@ class _MainMenuPageState extends State<MainMenuPage> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => const AnimalRegistrationPage(),
+                            builder: (context) =>
+                                const AnimalRegistrationPage(),
                           ),
                         );
                       },
@@ -112,47 +114,61 @@ class _MainMenuPageState extends State<MainMenuPage> {
                           MaterialPageRoute(
                             builder: (context) => const HomePage(),
                           ),
-                        );  
+                        );
                       },
                     ),
+                    const SizedBox(height: 20), // Adiciona espaçamento
+                    // NOVO CARD: QR Code
+                    _buildMenuCard(
+                      context,
+                      title: 'Gerar Placa de Identificação (QR Code)',
+                      subtitle: 'Crie uma tag de coleira para seu pet',
+                      color: const Color(0xFFE56E94), // Cor rosa/magenta
+                      icon: Icons.qr_code_2_rounded,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            // Navega para a nova página
+                            builder: (context) => const QRCodeGeneratorPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 40), // Espaçamento final
                   ],
                 ),
               ),
-
-              const SizedBox(height: 40),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   // ===== ÍCONES DO TOPO (MESMO DA HOME) =====
   Widget _iconTop(IconData icon, String label, {Widget? page}) {
-  return GestureDetector(
-    onTap: page == null
-        ? null
-        : () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => page!),
-            );
-          },
-    child: Column(
-      children: [
-        Icon(icon, size: 28, color: const Color(0xFF1B2B5B)),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF1B2B5B),
-            fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: page == null
+          ? null
+          : () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => page!));
+            },
+      child: Column(
+        children: [
+          Icon(icon, size: 28, color: const Color(0xFF1B2B5B)),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF1B2B5B),
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   // ===== CARDS DE MENU =====
   Widget _buildMenuCard(
@@ -206,10 +222,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
                 ],
               ),
