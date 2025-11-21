@@ -102,6 +102,7 @@ class AnimalDetailsPage extends StatelessWidget {
     final String raca = animalData['raca'] ?? 'Raça não informada';
     final String cor = animalData['cor'] ?? 'Não informada';
     final int idade = animalData['idade'] ?? 0;
+    final int telefone = animalData['telefone'] ?? 0;
     final String status = animalData['status'] ?? 'NORMAL';
     final String descricao =
         animalData['descricao'] ??
@@ -309,6 +310,13 @@ class AnimalDetailsPage extends StatelessWidget {
                                     value: idade > 0
                                         ? '$idade anos'
                                         : 'Não informada',
+                                  ),
+                                     _buildInfoRow(
+                                    icon: Icons.cake,
+                                    label: 'Telefone para contato:',
+                                    value: telefone > 999999999
+                                        ? '$telefone'
+                                        : 'Não informado',
                                   ),
                                 ],
                               ),

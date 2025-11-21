@@ -30,6 +30,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _telController = TextEditingController();
 
   String? _selectedStatus;
   String? _selectedRace;
@@ -64,6 +65,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
   void dispose() {
     _nameController.dispose();
     _ageController.dispose();
+    _telController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -368,6 +370,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
         'raca': _selectedRace,
         'cor': _selectedColor,
         'idade': int.tryParse(_ageController.text) ?? 0,
+        'telefone': int.tryParse(_telController.text) ?? 0,
         'status': _selectedStatus,
         'descricao': _descriptionController.text,
         'foto_url': photoUrl,
@@ -558,6 +561,16 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                               controller: _ageController,
                               decoration: _inputDecoration(
                                 label: 'IDADE (ANOS)',
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Telefone
+                            TextField(
+                              controller: _telController,
+                              decoration: _inputDecoration(
+                                label: 'TELEFONE PARA CONTATO',
                               ),
                               keyboardType: TextInputType.number,
                             ),
