@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:tcc_procurapet/main.dart';
+// ajuste o caminho conforme sua estrutura de pastas
+import 'package:tcc_procurapet/src/features/auth/presentation/pages/index_page.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Renderiza IndexPage e encontra título e botão',
+      (WidgetTester tester) async {
+    // monta a tela dentro do ProviderScope e MaterialApp
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: IndexPage(),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // verifica se o título aparece
+    expect(find.text('Procura-se\num Pet ✨'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // verifica se o subtítulo aparece
+    expect(find.text('A procura do seu aumigo!'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // verifica se o botão de login aparece
+    expect(find.text('LOGIN'), findsOneWidget);
   });
 }

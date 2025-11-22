@@ -102,12 +102,12 @@ class AnimalDetailsPage extends StatelessWidget {
     final String raca = animalData['raca'] ?? 'Raça não informada';
     final String cor = animalData['cor'] ?? 'Não informada';
     final int idade = animalData['idade'] ?? 0;
+    final int telefone = animalData['telefone'] ?? 0;
     final String status = animalData['status'] ?? 'NORMAL';
     final String descricao =
         animalData['descricao'] ??
-        'O cuidador não forneceu uma descrição detalhada para este animal.';
+            'O cuidador não forneceu uma descrição detalhada para este animal.';
 
-    // >>> AQUI: trata a URL com toString + trim <<<
     final String imageUrl =
         (animalData['foto_url'] ?? '').toString().trim();
 
@@ -115,7 +115,9 @@ class AnimalDetailsPage extends StatelessWidget {
         animalData['ultima_localizacao'] as Map<String, dynamic>?;
 
     final dataLocalizacao = ultimaLocalizacao != null
-        ? _formatLocationDate(ultimaLocalizacao['data_hora'])
+        ? _formatLocationDate(
+            ultimaLocalizacao['data_hora'] ?? ultimaLocalizacao['timestamp'],
+          )
         : 'Não há localização registrada.';
 
     Color statusColor;
@@ -202,43 +204,42 @@ class AnimalDetailsPage extends StatelessWidget {
                               ),
                               child: imageUrl.isNotEmpty
                                   ? Image.network(
-                                      imageUrl,
-                                      height: imageHeight,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      // >>> LOG DE ERRO PRA DEBUGAR <<<
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        debugPrint(
-                                            'ERRO AO CARREGAR IMAGEM (DETALHES): $error');
-                                        debugPrint(
-                                            'URL DETALHES: "$imageUrl"');
-                                        return Container(
-                                          height: imageHeight,
-                                          color: Colors.grey[300],
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.broken_image,
-                                              size: 50,
-                                              color: Colors.redAccent,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    )
-                                  : Container(
-                                      height: imageHeight,
-                                      color: Colors.grey[300],
-                                      child: Center(
-                                        child: Text(
-                                          'Sem foto disponível',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 16,
-                                          ),
-                                        ),
+                                imageUrl,
+                                height: imageHeight,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) {
+                                  debugPrint(
+                                      'ERRO AO CARREGAR IMAGEM (DETALHES): $error');
+                                  debugPrint(
+                                      'URL DETALHES: "$imageUrl"');
+                                  return Container(
+                                    height: imageHeight,
+                                    color: Colors.grey[300],
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 50,
+                                        color: Colors.redAccent,
                                       ),
                                     ),
+                                  );
+                                },
+                              )
+                                  : Container(
+                                height: imageHeight,
+                                color: Colors.grey[300],
+                                child: Center(
+                                  child: Text(
+                                    'Sem foto disponível',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
 
                             Padding(
@@ -282,7 +283,7 @@ class AnimalDetailsPage extends StatelessWidget {
                             // INFO PRINCIPAIS
                             Card(
                               margin:
-                                  const EdgeInsets.symmetric(horizontal: 14),
+                              const EdgeInsets.symmetric(horizontal: 14),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -310,6 +311,13 @@ class AnimalDetailsPage extends StatelessWidget {
                                         ? '$idade anos'
                                         : 'Não informada',
                                   ),
+                                     _buildInfoRow(
+                                    icon: Icons.cake,
+                                    label: 'Telefone para contato:',
+                                    value: telefone > 999999999
+                                        ? '$telefone'
+                                        : 'Não informado',
+                                  ),
                                 ],
                               ),
                             ),
@@ -319,7 +327,7 @@ class AnimalDetailsPage extends StatelessWidget {
                             // ÚLTIMA LOCALIZAÇÃO
                             Padding(
                               padding:
-                                  const EdgeInsets.symmetric(horizontal: 18),
+                              const EdgeInsets.symmetric(horizontal: 18),
                               child: Text(
                                 'Última localização',
                                 style: TextStyle(
@@ -332,7 +340,7 @@ class AnimalDetailsPage extends StatelessWidget {
                             const SizedBox(height: 4),
                             Padding(
                               padding:
-                                  const EdgeInsets.symmetric(horizontal: 18),
+                              const EdgeInsets.symmetric(horizontal: 18),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -348,7 +356,7 @@ class AnimalDetailsPage extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 14,
                                         color:
-                                            kPrimaryDarkBlue.withOpacity(0.85),
+                                        kPrimaryDarkBlue.withOpacity(0.85),
                                         height: 1.3,
                                       ),
                                     ),
@@ -409,9 +417,9 @@ class AnimalDetailsPage extends StatelessWidget {
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             AnimalLocationMapPage(
-                                          animalId: animalId,
-                                          animalName: nome,
-                                        ),
+                                              animalId: animalId,
+                                              animalName: nome,
+                                            ),
                                       ),
                                     );
                                   },
