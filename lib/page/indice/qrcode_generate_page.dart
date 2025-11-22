@@ -10,10 +10,16 @@ import 'package:flutter/rendering.dart'; // Para RenderRepaintBoundary
 import 'package:image_gallery_saver/image_gallery_saver.dart'; // NECESSÁRIO
 import 'package:path_provider/path_provider.dart'; // NECESSÁRIO
 
+// --- DEFINIÇÃO DE CORES DA PÁGINA EXEMPLO ---
+const Color kPrimaryDarkBlue = Color(0xFF1A237E);
+const Color kAccentLightBlue = Color(0xFF4FC3F7);
+const Color kLightBlueBackground = Color(0xFFBBD0FF);
+// Mantendo o seu tom para o botão/destaque, mas harmonizando
+const Color kActionColor = Color(0xFFE56E94); // Era azulEscuro no original
+
 // *******************************************************************
 // URL BASE DO SEU FIREBASE HOSTING (CONFIRMADA: tcc-procurapet)
 // Esta constante define a página web que o QR Code irá abrir.
-// O ID do Pet será automaticamente anexado como: ?id=ID_UNICO
 // *******************************************************************
 const String RESCUE_BASE_URL = 'https://tcc-procurapet.web.app/resgate.html';
 
@@ -38,9 +44,10 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
   String _currentPetId = ''; // O ID único gerado pelo Firestore
   bool _isLoading = false;
 
-  final Color azulFundo = const Color(0xFFBBD0FF);
-  final Color azulEscuro = const Color(0xFF1B2B5B);
-  final Color corBotao = const Color(0xFFE56E94);
+  // As suas cores originais foram substituídas/reutilizadas no estilo novo.
+  // final Color azulFundo = const Color(0xFFBBD0FF); // Usa kLightBlueBackground
+  // final Color azulEscuro = const Color(0xFF1B2B5B); // Usa kPrimaryDarkBlue (ou kActionColor para botões)
+  // final Color corBotao = const Color(0xFFE56E94); // Usa kActionColor
 
   @override
   void dispose() {
@@ -51,6 +58,8 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     _conditionsController.dispose();
     super.dispose();
   }
+
+  // --- FUNÇÕES DE LÓGICA (MANTIDAS INALTERADAS) ---
 
   // Função para salvar os dados no Firestore e obter o ID único
   Future<String?> _savePetDataToFirestore(Map<String, dynamic> petData) async {
@@ -92,7 +101,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
 
     try {
       // Tenta obter o ID do usuário logado (usado para autorização de edição/exclusão)
-      // Se não estiver usando autenticação, será null.
       final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
       final petData = {
@@ -114,7 +122,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
       if (petId == null) return;
 
       // 2. Constrói a URL final AUTOMATICAMENTE
-      // Usa a URL base do Hosting e anexa o ID como parâmetro (?id=ID)
       final String finalUrl = '$RESCUE_BASE_URL?id=$petId';
 
       setState(() {
@@ -138,9 +145,7 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     }
   }
 
-  // ***************************************************************
-  // 💾 FUNÇÃO ADICIONADA: Salvar o QR Code na Galeria de Imagens
-  // ***************************************************************
+  // Função para salvar o QR Code na Galeria de Imagens
   Future<void> _saveQrCodeToGallery() async {
     if (_qrDataUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -166,8 +171,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
       final pngBytes = byteData!.buffer.asUint8List();
 
       // 2. Salva a imagem em um arquivo temporário
-      // Embora o image_gallery_saver aceite bytes,
-      // salvar em um arquivo temporário pode ser útil em alguns cenários.
       final tempDir = await getTemporaryDirectory();
       final file = await File(
         '${tempDir.path}/procurapet_qr_${_currentPetId}.png',
@@ -177,7 +180,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
       // 3. Salva a imagem na galeria
       final result = await ImageGallerySaver.saveFile(file.path);
 
-      // O resultado é um Map, verifica se 'isSuccess' é true ou se contém um caminho
       if (result != null && result['isSuccess'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -215,10 +217,47 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
       });
     }
   }
-  // ***************************************************************
-  // FIM DA FUNÇÃO ADICIONADA
-  // ***************************************************************
 
+  // --- INPUT DECORATION NO ESTILO DA PÁGINA EXEMPLO ---
+  InputDecoration _inputDecoration({
+    required String label,
+    String? hint,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label.toUpperCase(), // Estilo da página de exemplo
+      hintText: hint,
+      hintStyle: TextStyle(
+        color: Colors.black.withOpacity(.6),
+        fontWeight: FontWeight.w500,
+      ),
+      // labelStyle: TextStyle(color: kPrimaryDarkBlue), // Cor do label se o floatingBehavior fosse default
+      floatingLabelBehavior: FloatingLabelBehavior.always, // Igual ao exemplo
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: Color(0xFFCFD7EA),
+        ), // Cor mais clara
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFCFD7EA)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: Color(0xFF7C9EE7),
+          width: 2,
+        ), // Azul suave no foco
+      ),
+      suffixIcon: suffixIcon,
+    );
+  }
+
+  // --- CAMPO DE TEXTO NO ESTILO DA PÁGINA EXEMPLO ---
   Widget _buildInputField(
     TextEditingController controller,
     String label,
@@ -233,21 +272,7 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          labelStyle: TextStyle(color: azulEscuro),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: azulEscuro),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: corBotao, width: 2),
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.8),
-        ),
+        decoration: _inputDecoration(label: label, hint: hint),
         validator: (value) {
           if (isRequired && (value == null || value.isEmpty)) {
             return 'Este campo é obrigatório';
@@ -258,216 +283,333 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     );
   }
 
+  // --- BOLHA DECORATIVA (REPLICADA DO EXEMPLO) ---
+  Widget _bubble(double size, {double opacity = .2}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            Colors.white.withOpacity(opacity + .05),
+            Colors.white.withOpacity(opacity),
+            Colors.transparent,
+          ],
+          stops: const [0.2, 0.55, 1.0],
+        ),
+        border: Border.all(
+          color: Colors.white.withOpacity(opacity + .15),
+          width: 1.2,
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGET BUILD REESTILIZADO ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: azulFundo,
-      appBar: AppBar(
-        title: const Text(
-          'Gerar Placa de Identificação',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: azulEscuro,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Título
-              Text(
-                'Dados do Pet para a Placa de Identificação',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: azulEscuro,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
+      backgroundColor: kLightBlueBackground, // Fundo azul claro
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // ===== BOLHAS DECORATIVAS (COPIADAS DO EXEMPLO) =====
+            Positioned(top: -40, right: -30, child: _bubble(130, opacity: .20)),
+            Positioned(top: 40, right: 24, child: _bubble(70, opacity: .25)),
+            Positioned(top: 90, left: 20, child: _bubble(58, opacity: .18)),
+            Positioned(top: 140, left: -24, child: _bubble(96, opacity: .22)),
 
-              const Text(
-                'Os dados serão salvos no banco de dados e o QR Code gerado irá abrir a página de resgate no seu site: https://tcc-procurapet.web.app',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.blueGrey,
-                  fontWeight: FontWeight.w500,
+            // Botão de Voltar (No lugar do AppBar)
+            Positioned(
+              top: 10,
+              left: 10,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: kPrimaryDarkBlue,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.5),
                 ),
               ),
-              const SizedBox(height: 20),
+            ),
 
-              // Campos do Pet
-              Text(
-                'Informações do Pet',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: corBotao,
+            // ===== CONTEÚDO PRINCIPAL =====
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
                 ),
-              ),
-              const Divider(color: Colors.black12, height: 10),
-              _buildInputField(_petNameController, 'Nome do Pet', 'Ex: Rex'),
-
-              // Campos do Tutor
-              Text(
-                'Informações do Tutor',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: corBotao,
-                ),
-              ),
-              const Divider(color: Colors.black12, height: 10),
-              _buildInputField(
-                _ownerNameController,
-                'Nome do Tutor',
-                'Ex: Ana Silva',
-              ),
-              _buildInputField(
-                _phoneController,
-                'Telefone de Contato',
-                'Ex: (99) 99999-9999',
-                keyboardType: TextInputType.phone,
-              ),
-              _buildInputField(
-                _addressController,
-                'Endereço',
-                'Ex: Rua Principal, 123 - Bairro',
-                maxLines: 2,
-              ),
-              _buildInputField(
-                _conditionsController,
-                'Condições Específicas (Opcional)',
-                'Ex: Vacinado, toma remédio X, chipado.',
-                maxLines: 3,
-                isRequired: false,
-              ),
-
-              const SizedBox(height: 30),
-
-              // Botão Gerar QR Code
-              ElevatedButton.icon(
-                onPressed: _isLoading ? null : _generateQRCode,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Cabeçalho (similar ao do exemplo)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 32,
+                          color: kPrimaryDarkBlue,
                         ),
-                      )
-                    : const Icon(Icons.qr_code_2_rounded, size: 28),
-                label: Text(
-                  _isLoading
-                      ? 'Salvando e Gerando...'
-                      : 'Salvar Dados e Gerar QR Code',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: corBotao,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 5,
-                ),
-              ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Gerar Placa de Identificação',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize:
+                                24, // Menor que o 28 do exemplo, cabe mais
+                            fontWeight: FontWeight.w800,
+                            height: 1.1,
+                            letterSpacing: 0.2,
+                            color: kPrimaryDarkBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Insira os dados do pet para criar um QR Code exclusivo,\n que direciona ao perfil de resgate\n em caso de emergência.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.black.withOpacity(0.55),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
-              if (_qrDataUrl.isNotEmpty) ...[
-                const SizedBox(height: 40),
-                Text(
-                  'QR Code da Placa (ID: $_currentPetId)',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: azulEscuro,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  // RepaintBoundary é NECESSÁRIO para capturar o widget como imagem
-                  child: RepaintBoundary(
-                    key: _qrKey, // Usa a chave global para a captura
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
+                    // Card branco translúcido (COMO NA PÁGINA EXEMPLO)
+                    Container(
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: corBotao, width: 4),
+                        color: Colors.white.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withOpacity(0.05),
                             blurRadius: 10,
-                            offset: const Offset(0, 5),
+                            offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      child: QrImageView(
-                        data: _qrDataUrl, // Usa a URL pública final
-                        version: QrVersions.auto,
-                        size: 250.0,
-                        backgroundColor: Colors.white,
-                        eyeStyle: QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: azulEscuro,
-                        ),
-                        dataModuleStyle: QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.square,
-                          color: azulEscuro,
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // --- Títulos dentro do Card ---
+                            Text(
+                              'Informações do Pet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: kPrimaryDarkBlue,
+                              ),
+                            ),
+                            const Divider(color: Color(0xFFCFD7EA), height: 18),
+
+                            // Campos do Pet
+                            _buildInputField(
+                              _petNameController,
+                              'Nome do Pet',
+                              'Ex: Rex',
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Campos do Tutor
+                            Text(
+                              'Informações do Tutor',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: kPrimaryDarkBlue,
+                              ),
+                            ),
+                            const Divider(color: Color(0xFFCFD7EA), height: 18),
+                            _buildInputField(
+                              _ownerNameController,
+                              'Nome do Tutor',
+                              'Ex: Ana Silva',
+                            ),
+                            _buildInputField(
+                              _phoneController,
+                              'Telefone de Contato',
+                              'Ex: (99) 99999-9999',
+                              keyboardType: TextInputType.phone,
+                            ),
+                            _buildInputField(
+                              _addressController,
+                              'Endereço',
+                              'Ex: Rua Principal, 123 - Bairro',
+                              maxLines: 2,
+                            ),
+                            _buildInputField(
+                              _conditionsController,
+                              'Condições Específicas (Opcional)',
+                              'Ex: Vacinado, toma remédio X, chipado.',
+                              maxLines: 3,
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Botão Gerar QR Code (FilledButton, estilo do exemplo)
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: _isLoading ? null : _generateQRCode,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor:
+                                      kActionColor, // Cor de ação customizada
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 5,
+                                ),
+                                icon: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.qr_code_2_rounded,
+                                        size: 28,
+                                      ),
+                                label: Text(
+                                  _isLoading
+                                      ? 'Salvando e Gerando...'
+                                      : 'Salvar Dados e Gerar QR Code',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800, // Mais bold
+                                    letterSpacing: 0.3, // Mais espaçamento
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
 
-                // ***************************************************************
-                // BOTÃO ADICIONADO: Salvar QR Code
-                // ***************************************************************
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _saveQrCodeToGallery,
-                  icon: Icon(Icons.download, size: 24),
-                  label: Text(
-                    _isLoading ? 'Salvando...' : 'Salvar QR Code na Galeria',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: corBotao,
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: corBotao, width: 2),
-                    ),
-                  ),
-                ),
+                    // --- Se o QR Code foi gerado ---
+                    if (_qrDataUrl.isNotEmpty) ...[
+                      const SizedBox(height: 40),
+                      Text(
+                        'QR Code da Placa (ID: $_currentPetId)',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: kPrimaryDarkBlue,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
 
-                // ***************************************************************
-                // FIM DO BOTÃO ADICIONADO
-                // ***************************************************************
-                const SizedBox(height: 20),
+                      // Card/Container do QR Code
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(
+                              0.95,
+                            ), // Mais opaco para visibilidade
+                            borderRadius: BorderRadius.circular(
+                              20,
+                            ), // Mais arredondado
+                            border: Border.all(
+                              color: kActionColor.withOpacity(0.5),
+                              width: 3,
+                            ), // Borda sutil de destaque
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 15, // Maior blur
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: RepaintBoundary(
+                            key: _qrKey,
+                            child: QrImageView(
+                              data: _qrDataUrl,
+                              version: QrVersions.auto,
+                              size: 250.0,
+                              backgroundColor: Colors.white,
+                              eyeStyle: QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: kPrimaryDarkBlue, // Cor do exemplo
+                              ),
+                              dataModuleStyle: QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: kPrimaryDarkBlue, // Cor do exemplo
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                const Text(
-                  'O QR Code foi gerado com sucesso! Imprima e insira na coleira do seu pet.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.green),
+                      // Botão Salvar QR Code (OutlineButton, estilo do exemplo)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _saveQrCodeToGallery,
+                          icon: const Icon(Icons.download, size: 24),
+                          label: Text(
+                            _isLoading
+                                ? 'Salvando...'
+                                : 'Salvar QR Code na Galeria',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: kActionColor, // Cor do texto/ícone
+                            backgroundColor: Colors.white, // Fundo branco
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: const BorderSide(
+                              color: kActionColor,
+                              width: 2,
+                            ), // Borda colorida
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      const Text(
+                        'O QR Code foi gerado com sucesso! Imprima e insira na coleira do seu pet.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );

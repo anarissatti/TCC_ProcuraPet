@@ -249,8 +249,9 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
       barrierDismissible: false,
       builder: (dialogContext) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
             child: Column(
@@ -361,8 +362,8 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
 
       await _firestore.collection('animals').add({
         // 👇 Identificação do dono do cadastro
-        'userId': uid,                // usado na PerfilPage
-        'id_usuario': uid,            // opcional, pra compatibilidade
+        'userId': uid, // usado na PerfilPage
+        'id_usuario': uid, // opcional, pra compatibilidade
 
         'nome': _nameController.text,
         'raca': _selectedRace,
@@ -457,8 +458,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.pets_rounded,
-                              size: 32, color: cs.primary),
+                          Icon(Icons.pets_rounded, size: 32, color: cs.primary),
                           const SizedBox(width: 8),
                           const Text(
                             'Cadastro de Animal',
@@ -515,8 +515,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                               asyncItems: _fetchDogBreeds,
                               popupProps: PopupProps.menu(
                                 showSearchBox: true,
-                                searchDelay:
-                                    const Duration(milliseconds: 300),
+                                searchDelay: const Duration(milliseconds: 300),
                                 showSelectedItems: true,
                                 menuProps: MenuProps(
                                   borderRadius: BorderRadius.circular(12),
@@ -566,13 +565,10 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                             // Status
                             DropdownButtonFormField<String>(
                               value: _selectedStatus,
-                              decoration: _inputDecoration(
-                                label: 'STATUS',
-                              ),
-                              items: const [
-                                'DESAPARECIDO',
-                                'ENCONTRADO',
-                              ].map((s) {
+                              decoration: _inputDecoration(label: 'STATUS'),
+                              items: const ['DESAPARECIDO', 'ENCONTRADO'].map((
+                                s,
+                              ) {
                                 return DropdownMenuItem<String>(
                                   value: s,
                                   child: Text(s),
@@ -675,22 +671,19 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 8.0),
+                                  padding: const EdgeInsets.only(bottom: 8.0),
                                   child: Text(
                                     'Tags geradas (ML Kit):',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color:
-                                          kPrimaryDarkBlue.withOpacity(0.8),
+                                      color: kPrimaryDarkBlue.withOpacity(0.8),
                                     ),
                                   ),
                                 ),
                               ),
                             if (_tags.isNotEmpty)
                               Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 12.0),
+                                padding: const EdgeInsets.only(bottom: 12.0),
                                 child: Wrap(
                                   spacing: 8,
                                   runSpacing: 4,
@@ -704,15 +697,13 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                          backgroundColor:
-                                              kAccentLightBlue.withOpacity(
-                                            0.2,
-                                          ),
+                                          backgroundColor: kAccentLightBlue
+                                              .withOpacity(0.2),
                                           labelPadding:
                                               const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
+                                                horizontal: 8,
+                                                vertical: 2,
+                                              ),
                                           side: const BorderSide(
                                             color: kAccentLightBlue,
                                             width: 1,
@@ -747,9 +738,7 @@ class _AnimalRegistrationPageState extends State<AnimalRegistrationPage> {
                                   ),
                                 ),
                                 onPressed: _saveAnimal,
-                                icon: const Icon(
-                                  Icons.check_circle_outline,
-                                ),
+                                icon: const Icon(Icons.check_circle_outline),
                                 label: const Text(
                                   'Concluir cadastro',
                                   style: TextStyle(
