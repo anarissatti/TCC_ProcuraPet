@@ -21,6 +21,26 @@ class _HomePageState extends State<HomePage> {
   final Color azulEscuro = const Color(0xFF1B2B5B);
   final Color azulClaro = const Color(0xFF7C9EE7);
 
+  // Busca
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool _matchesSearch(Map<String, dynamic> animal) {
+    if (_searchQuery.isEmpty) return true;
+
+    final query = _searchQuery.toLowerCase();
+    final nome = (animal['nome'] ?? '').toString().toLowerCase();
+    final raca = (animal['raca'] ?? '').toString().toLowerCase();
+
+    return nome.contains(query) || raca.contains(query);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,6 +107,35 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 8),
 
+            // ===== CAMPO DE BUSCA =====
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.trim();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Buscar por nome ou raça...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.9),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 0,
+                    horizontal: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             // ===== LISTA DE ANIMAIS =====
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
@@ -116,7 +165,8 @@ class _HomePageState extends State<HomePage> {
                     );
                   }
 
-                  final animais = snapshot.data!.docs.where((doc) {
+                  // Primeiro filtra por status
+                  final animaisPorStatus = snapshot.data!.docs.where((doc) {
                     final animal = doc.data() as Map<String, dynamic>;
                     final status = (animal['status'] as String?)
                             ?.trim()
@@ -130,16 +180,25 @@ class _HomePageState extends State<HomePage> {
                       return status == 'ENCONTRADO';
                     }
 
-                    // "Todos" → sem filtro
+                    // "Todos" → sem filtro de status
                     return true;
                   }).toList();
 
-                  if (animais.isEmpty &&
-                      (filtroSelecionado == 'Desaparecidos' ||
-                          filtroSelecionado == 'Encontrados')) {
+                  // Depois aplica o filtro de busca (nome/raça)
+                  final animaisFiltrados = animaisPorStatus.where((doc) {
+                    final animal =
+                        doc.data() as Map<String, dynamic>? ?? {};
+                    return _matchesSearch(
+                      Map<String, dynamic>.from(animal),
+                    );
+                  }).toList();
+
+                  if (animaisFiltrados.isEmpty) {
                     return Center(
                       child: Text(
-                        'Nenhum animal com status "$filtroSelecionado" encontrado.',
+                        _searchQuery.isEmpty
+                            ? 'Nenhum animal com status "$filtroSelecionado" encontrado.'
+                            : 'Nenhum animal encontrado para os filtros atuais.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 16,
@@ -159,9 +218,9 @@ class _HomePageState extends State<HomePage> {
                       mainAxisSpacing: 18,
                       mainAxisExtent: 260,
                     ),
-                    itemCount: animais.length,
+                    itemCount: animaisFiltrados.length,
                     itemBuilder: (context, index) {
-                      final doc = animais[index];
+                      final doc = animaisFiltrados[index];
                       final animal = doc.data()! as Map<String, dynamic>;
                       final fotoUrl = (animal['foto_url'] as String?) ?? '';
                       final status = (animal['status'] as String?)
@@ -232,8 +291,7 @@ class _HomePageState extends State<HomePage> {
                                       alignment: Alignment.centerLeft,
                                       child: Chip(
                                         materialTapTargetSize:
-                                            MaterialTapTargetSize
-                                                .shrinkWrap,
+                                            MaterialTapTargetSize.shrinkWrap,
                                         padding: EdgeInsets.zero,
                                         visualDensity:
                                             VisualDensity.compact,

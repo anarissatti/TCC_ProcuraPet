@@ -58,6 +58,87 @@ class _CadastroPageState extends State<CadastroPage> {
     super.dispose();
   }
 
+  // ===== DIALOGO BONITINHO DE SUCESSO =====
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // só fecha no botão
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF34D399), // verdinho sucesso
+                  size: 60,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Conta criada com sucesso!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1B2B5B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Você já pode fazer login e aproveitar o Procura-se Pet 🐾',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      // fecha o diálogo
+                      Navigator.of(dialogContext).pop();
+
+                      // opcional: limpar campos (nem precisa muito, pq vai voltar pra tela anterior)
+                      _nomeCtrl.clear();
+                      _emailCtrl.clear();
+                      _passCtrl.clear();
+                      _foneCtrl.clear();
+                      _cidadeCtrl.clear();
+                      _uf = null;
+
+                      // volta para a tela anterior (login)
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text(
+                      'Continuar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // ===== Carrega cidades da UF usando API IBGE =====
   Future<void> _carregarCidadesDaUf(String uf) async {
     // Se já tem cache, não busca de novo
@@ -151,13 +232,10 @@ class _CadastroPageState extends State<CadastroPage> {
       });
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cadastro realizado com sucesso!')),
-        );
-        Navigator.pop(context); // volta para a tela anterior
+        // em vez de SnackBar no rodapé, mostra diálogo central
+        _showSuccessDialog();
       }
     } on FirebaseAuthException catch (e) {
-      // Debug no console
       // ignore: avoid_print
       print('FirebaseAuthException: ${e.code} - ${e.message}');
 
@@ -187,7 +265,6 @@ class _CadastroPageState extends State<CadastroPage> {
             .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
-      // Outros erros (Firestore, etc.)
       // ignore: avoid_print
       print('Erro genérico no cadastro: $e');
       if (context.mounted) {
@@ -384,7 +461,7 @@ class _CadastroPageState extends State<CadastroPage> {
                               ),
                             ),
 
-                          // CIDADE (Autocomplete) – usa lista da UF selecionada
+                          // CIDADE (Autocomplete)
                           _CidadeAutocomplete(
                             controller: _cidadeCtrl,
                             label: 'CIDADE',

@@ -3,7 +3,9 @@ import '../animal_registration_page.dart';
 import 'package:tcc_procurapet/page/buscar_animal.dart';
 import 'home_page.dart'; // para acessar as páginas dos ícones superiores
 import 'perfil_page.dart';
-import 'qrcode_generate_page.dart'; // NOVO: Importa a página de QR Code
+import 'map_page.dart';
+// 1. IMPORTAR A PÁGINA DO QR CODE
+import 'qrcode_generate_page.dart'; // Assumindo o nome do arquivo 'qrcode_generate_page.dart'
 
 class MainMenuPage extends StatefulWidget {
   const MainMenuPage({super.key});
@@ -15,6 +17,8 @@ class MainMenuPage extends StatefulWidget {
 class _MainMenuPageState extends State<MainMenuPage> {
   final Color azulFundo = const Color(0xFFBBD0FF);
   final Color azulEscuro = const Color(0xFF1B2B5B);
+  // Cor Rosa Claro para o novo botão, baseada no kActionColor do QR Code
+  final Color rosaClaroAcao = const Color(0xFFE56E94);
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +27,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // ===== ÍCONES SUPERIORES =====
+            // ===== ÍCONES SUPERIORES (INALTERADO) =====
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               child: Container(
@@ -66,10 +70,12 @@ class _MainMenuPageState extends State<MainMenuPage> {
 
             // ===== CARDS DE AÇÃO =====
             Expanded(
+              // Adicionado Expanded para permitir que o SingleChildScrollView abaixo funcione corretamente
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
+                    // CARD 1: Cadastrar Pet Perdido (Azul)
                     _buildMenuCard(
                       context,
                       title: 'Cadastrar Pet Perdido',
@@ -87,6 +93,25 @@ class _MainMenuPageState extends State<MainMenuPage> {
                     ),
                     const SizedBox(height: 20),
 
+                    // CARD 2: GERAR PLACA/QR CODE (ROSA CLARO) 🚨 NOVO BOTÃO
+                    _buildMenuCard(
+                      context,
+                      title: 'Gerar Placa de Identificação',
+                      subtitle: 'Crie e salve o QR Code de resgate do seu pet',
+                      color: rosaClaroAcao, // Usando a cor rosinha clara
+                      icon: Icons.qr_code_2_rounded,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const QRCodeGeneratorPage(), // Navega para a nova página
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // CARD 3: Buscar Animal (Verde)
                     _buildMenuCard(
                       context,
                       title: 'Buscar Animal',
@@ -103,6 +128,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
                     ),
                     const SizedBox(height: 20),
 
+                    // CARD 4: Mapa de Animais Perdidos (Amarelo)
                     _buildMenuCard(
                       context,
                       title: 'Mapa de Animais Perdidos',
@@ -110,31 +136,15 @@ class _MainMenuPageState extends State<MainMenuPage> {
                       color: const Color(0xFFFBBF24),
                       icon: Icons.map_rounded,
                       onTap: () {
-                        Navigator.of(context).push(
+                        Navigator.push(
+                          context,
                           MaterialPageRoute(
-                            builder: (context) => const HomePage(),
+                            builder: (_) => const LostAnimalsMapPage(),
                           ),
                         );
                       },
                     ),
-                    const SizedBox(height: 20), // Adiciona espaçamento
-                    // NOVO CARD: QR Code
-                    _buildMenuCard(
-                      context,
-                      title: 'Gerar Placa de Identificação (QR Code)',
-                      subtitle: 'Crie uma tag de coleira para seu pet',
-                      color: const Color(0xFFE56E94), // Cor rosa/magenta
-                      icon: Icons.qr_code_2_rounded,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            // Navega para a nova página
-                            builder: (context) => const QRCodeGeneratorPage(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 40), // Espaçamento final
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -147,6 +157,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
 
   // ===== ÍCONES DO TOPO (MESMO DA HOME) =====
   Widget _iconTop(IconData icon, String label, {Widget? page}) {
+    // ... (Código da função _iconTop inalterado)
     return GestureDetector(
       onTap: page == null
           ? null
@@ -170,7 +181,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
     );
   }
 
-  // ===== CARDS DE MENU =====
+  // ===== CARDS DE MENU (INALTERADO) =====
   Widget _buildMenuCard(
     BuildContext context, {
     required String title,
@@ -179,6 +190,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    // ... (Código da função _buildMenuCard inalterado)
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),

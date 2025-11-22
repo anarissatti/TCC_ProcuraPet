@@ -7,7 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/rendering.dart'; // Para RenderRepaintBoundary
-import 'package:image_gallery_saver/image_gallery_saver.dart'; // NECESSÁRIO
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart'; // NECESSÁRIO
 import 'package:path_provider/path_provider.dart'; // NECESSÁRIO
 
 // --- DEFINIÇÃO DE CORES DA PÁGINA EXEMPLO ---
@@ -44,11 +44,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
   String _currentPetId = ''; // O ID único gerado pelo Firestore
   bool _isLoading = false;
 
-  // As suas cores originais foram substituídas/reutilizadas no estilo novo.
-  // final Color azulFundo = const Color(0xFFBBD0FF); // Usa kLightBlueBackground
-  // final Color azulEscuro = const Color(0xFF1B2B5B); // Usa kPrimaryDarkBlue (ou kActionColor para botões)
-  // final Color corBotao = const Color(0xFFE56E94); // Usa kActionColor
-
   @override
   void dispose() {
     _petNameController.dispose();
@@ -59,14 +54,14 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     super.dispose();
   }
 
-  // --- FUNÇÕES DE LÓGICA (MANTIDAS INALTERADAS) ---
+  // --- FUNÇÕES DE LÓGICA ---
 
   // Função para salvar os dados no Firestore e obter o ID único
   Future<String?> _savePetDataToFirestore(Map<String, dynamic> petData) async {
     try {
       final db = FirebaseFirestore.instance;
 
-      // Salva na coleção 'pets_qr_data' (confirmada por você)
+      // Salva na coleção 'pets_qr_data'
       final docRef = await db.collection('pets_qr_data').add(petData);
 
       return docRef.id;
@@ -88,7 +83,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
 
   // Função principal para gerar o QR Code
   Future<void> _generateQRCode() async {
-    // Verifica se os campos obrigatórios estão preenchidos
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -100,7 +94,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     });
 
     try {
-      // Tenta obter o ID do usuário logado (usado para autorização de edição/exclusão)
       final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
       final petData = {
@@ -108,20 +101,17 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
         'ownerName': _ownerNameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
-        // Se as condições estiverem vazias, salva a string padrão.
         'conditions': _conditionsController.text.trim().isEmpty
             ? 'Nenhuma informação adicional.'
             : _conditionsController.text.trim(),
-        'userId': userId, // Adiciona o ID do Tutor
+        'userId': userId,
         'timestamp': FieldValue.serverTimestamp(),
       };
 
-      // 1. Salva os dados no Firestore e obtém o ID (Chave de Resgate)
       final petId = await _savePetDataToFirestore(petData);
 
       if (petId == null) return;
 
-      // 2. Constrói a URL final AUTOMATICAMENTE
       final String finalUrl = '$RESCUE_BASE_URL?id=$petId';
 
       setState(() {
@@ -145,7 +135,7 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     }
   }
 
-  // Função para salvar o QR Code na Galeria de Imagens
+  // 🚨 FUNÇÃO ATUALIZADA PARA USAR ImageGallerySaverPlus.saveImage
   Future<void> _saveQrCodeToGallery() async {
     if (_qrDataUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,29 +148,29 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
     }
 
     setState(() {
-      _isLoading = true; // Reutilizamos o indicador de loading
+      _isLoading = true;
     });
 
     try {
-      // 1. Captura o widget QrImageView como imagem
+      // 1. Captura o widget QrImageView como imagem (PNG Bytes)
       final boundary =
           _qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      // Define a resolução da imagem, maior valor, maior qualidade
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
-      // 2. Salva a imagem em um arquivo temporário
-      final tempDir = await getTemporaryDirectory();
-      final file = await File(
-        '${tempDir.path}/procurapet_qr_${_currentPetId}.png',
-      ).create();
-      await file.writeAsBytes(pngBytes);
+      // 2. Salva a imagem na galeria usando ImageGallerySaverPlus.saveImage
+      // Isso é mais direto e preferido do que salvar em um arquivo temporário.
+      final result = await ImageGallerySaverPlus.saveImage(
+        pngBytes,
+        name: 'procurapet_qr_${_currentPetId}', // Nome do arquivo
+        quality: 100,
+      );
 
-      // 3. Salva a imagem na galeria
-      final result = await ImageGallerySaver.saveFile(file.path);
+      // O resultado de saveImage é um Map, verificamos 'isSuccess'
+      final bool isSuccess = result?['isSuccess'] == true;
 
-      if (result != null && result['isSuccess'] == true) {
+      if (isSuccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -231,7 +221,6 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
         color: Colors.black.withOpacity(.6),
         fontWeight: FontWeight.w500,
       ),
-      // labelStyle: TextStyle(color: kPrimaryDarkBlue), // Cor do label se o floatingBehavior fosse default
       floatingLabelBehavior: FloatingLabelBehavior.always, // Igual ao exemplo
       filled: true,
       fillColor: Colors.white,
@@ -372,7 +361,7 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Insira os dados do pet para criar um QR Code exclusivo,\n que direciona ao perfil de resgate\n em caso de emergência.',
+                      'Preencha os dados para gerar a plaquinha com QR Code.\nOs dados serão salvos no seu banco de dados.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 13,
@@ -405,9 +394,9 @@ class _QRCodeGeneratorPageState extends State<QRCodeGeneratorPage> {
                             Text(
                               'Informações do Pet',
                               style: TextStyle(
-                                fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: kPrimaryDarkBlue,
+                                fontSize: 18,
                               ),
                             ),
                             const Divider(color: Color(0xFFCFD7EA), height: 18),
